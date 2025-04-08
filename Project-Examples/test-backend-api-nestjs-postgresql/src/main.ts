@@ -1,10 +1,21 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
-import { VersioningType } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { TransformResponseInterceptor } from './common/interceptors/transform-response.interceptor';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Loại bỏ các thuộc tính không khai báo trong DTO
+      forbidNonWhitelisted: true, // Ném lỗi nếu có thuộc tính không hợp lệ
+      transform: true, // Chuyển đổi kiểu dữ liệu theo DTO
+    }),
+  );
+  app.useGlobalInterceptors(new TransformResponseInterceptor());
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   //Quản lý phiên bản API bằng URL
   app.enableVersioning({

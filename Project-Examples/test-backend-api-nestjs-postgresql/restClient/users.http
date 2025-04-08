@@ -1,0 +1,29 @@
+POST http://localhost:9000/api/v1/users
+Content-Type: application/json
+
+{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "password": "Password@123"
+}
+
+###
+
+POST http://localhost:9000/api/v1/users
+Content-Type: application/json
+
+{
+    "name": "Will Smith",
+    "email": "will@example.com",
+    "password": "Password@123"
+}
+
+### 
+GET http://localhost:9000/api/v1/users
+
+
+### search
+GET http://localhost:9000/api/v1/users?keyword=lisa
+
+### soft delete
+DELETE  http://localhost:9000/api/v1/users/c755e588-4d21-47b0-95f4-b94c53006967

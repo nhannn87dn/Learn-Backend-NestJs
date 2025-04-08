@@ -11,14 +11,14 @@ import {
   validateSync,
 } from 'class-validator';
 
-enum Environment {
+export enum Environment {
   Development = 'development',
   Production = 'production',
   Test = 'test',
   Provision = 'provision',
 }
 
-enum DatabaseType {
+export enum DatabaseType {
   Postgres = 'postgres',
   MySQL = 'mysql',
   SQLite = 'sqlite',

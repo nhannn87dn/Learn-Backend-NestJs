@@ -346,8 +346,38 @@ export class AppModule {}
 Ưu điểm:  
 ✔️ **Mã nguồn có tổ chức rõ ràng**  
 ✔️ **Dễ mở rộng, bảo trì**  
-✔️ **Tăng khả năng tái sử dụng**  
+✔️ **Tăng khả năng tái sử dụng**  \
 
+---
+
+✅ **Câu lệnh tạo resource nhanh cho REST API + CRUD**
+
+```bash
+nest g res modules/users --no-interactive --type rest --crud
+```
+
+🧠 Giải thích:
+`--no-interactive`: tắt chế độ hỏi
+`--type rest`: chọn transport là REST API
+`--crud`: tạo sẵn controller, service với các endpoint CRUD
+
+⚠️ **Cờ `--crud` chỉ áp dụng nếu `@nestjs/cli` phiên bản >= 9.0**
+
+Với lệnh trên, bạn sẽ có:
+
+```
+src/
+└── modules/
+    └── users/
+        ├── dto/
+        │   ├── create-user.dto.ts
+        │   └── update-user.dto.ts
+        ├── entities/
+        │   └── user.entity.ts
+        ├── users.controller.ts
+        ├── users.module.ts
+        └── users.service.ts
+```
 ---
 
 ### **6.3. Shared Modules**  

@@ -938,15 +938,172 @@ getSomething() {
 ```
 
 ---
+-
 
-## 📦 Tổng kết
+## 🧱 NestJS - Exception Filters
 
-| Tên Decorator     | Dùng cho           | Công cụ |
-|------------------|--------------------|---------|
-| `@createParamDecorator()` | Lấy param từ request | ✅ |
-| `@SetMetadata()` | Gắn metadata cho route | ✅ |
-| Method Decorator | Log, validate, đo thời gian | `descriptor.value` |
+### 📌 Exception Filter là gì?
+
+`Exception Filter` là nơi bạn **bắt các lỗi xảy ra trong ứng dụng** và định dạng lại chúng theo ý bạn trước khi trả về cho client.
 
 ---
 
-Bạn muốn mình tạo sẵn bộ `@Roles()`, `@Public()`, `@User()` và `AuthGuard` mẫu để bạn áp dụng cho dự án không? Mình có thể scaffold sẵn nhé.
+### ⚠️ Khi nào cần Exception Filter?
+
+- Format lỗi cho **thống nhất** (giống cấu trúc của response success)
+- Ghi log các lỗi
+- Phân loại lỗi tùy theo loại exception
+- Trả thông báo lỗi rõ ràng, thân thiện cho client
+
+---
+
+### 🛠️ Cách tạo Custom Exception Filter
+
+#### Bước 1: Tạo file filter
+
+```bash
+nest g filter common/filters/http-exception
+```
+
+#### Bước 2: Viết Custom Exception Filter
+
+```ts
+// src/common/filters/http-exception.filter.ts
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
+import { Request, Response } from 'express';
+
+@Catch()
+export class HttpExceptionFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+
+    const status =
+      exception instanceof HttpException
+        ? exception.getStatus()
+        : HttpStatus.INTERNAL_SERVER_ERROR;
+
+    const exceptionResponse =
+      exception instanceof HttpException
+        ? exception.getResponse()
+        : {};
+
+    const message =
+      typeof exceptionResponse === 'string'
+        ? exceptionResponse
+        : (exceptionResponse as any).message || 'Internal server error';
+
+    response.status(status).json({
+      status: 'error',
+      statusCode: status,
+      message: Array.isArray(message) ? 'Validation failed' : message,
+      errors: Array.isArray(message) ? message : null,
+      path: request.url,
+      timestamp: new Date().toISOString(),
+      data: null,
+    });
+  }
+}
+```
+
+---
+
+### ✅ Cách áp dụng Exception Filter
+
+#### 1. Áp dụng cho 1 route
+
+```ts
+@Get()
+@UseFilters(new HttpExceptionFilter())
+findAll() {
+  throw new BadRequestException('Something went wrong!');
+}
+```
+
+---
+
+#### 2. Áp dụng cho 1 controller
+
+```ts
+@UseFilters(HttpExceptionFilter)
+@Controller('users')
+export class UsersController { ... }
+```
+
+---
+
+#### 3. Áp dụng global
+
+##### 👉 Trong `main.ts`
+
+```ts
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  app.useGlobalFilters(new HttpExceptionFilter());
+  await app.listen(3000);
+}
+```
+
+---
+
+### 📦 NestJS đã có sẵn Exception
+
+#### Một số exception thường dùng:
+
+| Exception                     | Mã lỗi |
+|------------------------------|--------|
+| `BadRequestException`        | 400    |
+| `UnauthorizedException`      | 401    |
+| `ForbiddenException`         | 403    |
+| `NotFoundException`          | 404    |
+| `InternalServerErrorException` | 500  |
+
+```ts
+throw new NotFoundException('User not found');
+```
+
+---
+
+### 🧠 Mẹo hay
+
+- `@Catch()` có thể nhận 1 hoặc nhiều loại exception:
+  
+  ```ts
+  @Catch(HttpException, SomeCustomException)
+  ```
+
+- Bạn có thể tạo **nhiều filter khác nhau** cho các loại lỗi khác nhau (ví dụ: DBErrorFilter, ValidationFilter, ...)
+
+---
+
+### 📌 Kết hợp với `class-validator`
+
+Nếu bạn dùng `@UsePipes(new ValidationPipe())`, các lỗi từ `class-validator` sẽ tự được ném thành `BadRequestException`, nên bạn có thể xử lý chung luôn trong filter.
+
+---
+
+### 🧪 Ví dụ kết quả từ Exception Filter
+
+```json
+{
+  "status": "error",
+  "statusCode": 400,
+  "message": "Validation failed",
+  "errors": [
+    "Email không được để trống",
+    "Email không hợp lệ"
+  ],
+  "path": "/users",
+  "timestamp": "2025-04-05T13:50:00.000Z",
+  "data": null
+}
+```
+
+---
