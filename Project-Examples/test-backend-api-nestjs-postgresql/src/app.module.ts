@@ -6,6 +6,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config'; // Ensure this pat
 import { DatabaseType, validate } from './config/env.validation';
 import { PostsModule } from './modules/posts/posts.module';
 import { UsersModule } from './modules/users/users.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
+import { AuthModule } from './modules/auth/auth.module';
 @Module({
   imports: [
     //Cau hinh bien moi truong
@@ -35,6 +38,9 @@ import { UsersModule } from './modules/users/users.module';
     // Các module khác của bạn
     PostsModule,
     UsersModule,
+    RolesModule,
+    PermissionsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

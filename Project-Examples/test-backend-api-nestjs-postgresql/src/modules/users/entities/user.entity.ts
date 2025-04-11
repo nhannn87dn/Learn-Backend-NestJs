@@ -1,5 +1,9 @@
+import { PASSWORD_REGEX } from '@/common/constants';
+import { Role } from '@/modules/roles/entities/role.entity';
 import { Exclude } from 'class-transformer';
 import {
+  IsBoolean,
+  IsDate,
   IsEmail,
   IsNotEmpty,
   IsOptional,
@@ -15,13 +19,12 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
-
-const passwordRegEx =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,20}$/;
 
 @Entity({ name: 'Auth_User' })
 export class User {
@@ -33,6 +36,7 @@ export class User {
   @IsNotEmpty({ message: 'Name must not be empty.' })
   @MinLength(2, { message: 'Name must have atleast 2 characters.' })
   @MaxLength(160, { message: 'Name must have maximum 160 characters.' })
+  @IsString()
   name: string;
 
   @Column({ name: 'Email', unique: true })
@@ -44,7 +48,7 @@ export class User {
   @Column({ name: 'Password', type: 'varchar' })
   @Exclude({ toPlainOnly: true }) // Loại bỏ password khỏi response
   @IsNotEmpty()
-  @Matches(passwordRegEx, {
+  @Matches(PASSWORD_REGEX, {
     message: `Password must contain Minimum 8 and maximum 20 characters, 
     at least one uppercase letter, 
     one lowercase letter, 
@@ -54,6 +58,7 @@ export class User {
   password: string;
 
   @Column({ name: 'IsActive', default: true })
+  @IsBoolean()
   isActive: boolean;
 
   @Column({ name: 'Avatar', nullable: true })
@@ -63,6 +68,7 @@ export class User {
 
   @Column({ name: 'LastLoginAt', nullable: true, type: 'timestamp' })
   @IsOptional()
+  @IsDate()
   lastLoginAt?: Date;
 
   @CreateDateColumn({ name: 'CreatedAt' })
@@ -74,6 +80,11 @@ export class User {
   @DeleteDateColumn({ name: 'DeletedAt', nullable: true })
   @IsOptional()
   deletedAt?: Date;
+
+  //relations
+  @ManyToOne(() => Role, (role) => role.users)
+  @JoinColumn()
+  role: Role;
 
   @BeforeInsert()
   beforeInsert() {
@@ -90,7 +101,6 @@ export class User {
   @BeforeUpdate()
   beforeUpdate() {
     this.email = this.email.toLowerCase();
-    this.name = this.name.toUpperCase();
     this.updatedAt = new Date();
   }
 }

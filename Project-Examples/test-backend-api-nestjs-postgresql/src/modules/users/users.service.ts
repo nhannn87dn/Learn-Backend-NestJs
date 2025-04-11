@@ -6,11 +6,13 @@ import {
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
-import * as bcrypt from 'bcrypt';
 import { Pagination } from '@/common/interfaces/response.interface';
-import { PasswordService } from '@/common/services/password.service';
+import { PasswordService } from '@/common/providers/password';
+import { RolesService } from '../roles/roles.service';
+import { toTitleCase } from '@/common/utils/string.util';
+import { Permission } from '../permissions/entities/permission.entity';
 
 @Injectable()
 export class UsersService {
@@ -18,32 +20,108 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     protected userRepository: Repository<User>,
+    @InjectRepository(Permission)
+    protected permissionRepository: Repository<Permission>,
     private readonly passwordService: PasswordService,
+    private rolesService: RolesService,
   ) {}
 
+  async validateUserByEmail(
+    email: string,
+    password: string,
+  ): Promise<Omit<User, 'password'> | null> {
+    const user = await this.userRepository.findOne({
+      where: { email },
+      relations: ['role', 'role.permissions'],
+    });
+
+    if (user && (await this.passwordService.compare(password, user.password))) {
+      const { password, ...result } = user;
+      // get all permissions for root user
+      if (result.role?.name === 'root') {
+        result.role.permissions = await this.permissionRepository.find();
+      }
+
+      return result as Omit<User, 'password'>;
+    }
+
+    return null;
+  }
+
+  async getPermissionsByUserId(id: string) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      relations: ['role', 'role.permissions'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    let permissions: Permission[];
+
+    if (user.role?.name === 'root') {
+      permissions = await this.permissionRepository.find();
+    } else {
+      permissions = user.role?.permissions || [];
+    }
+
+    // Ngược lại trả về permission gán cho role
+    return permissions;
+  }
+
+  async getPermissionsByRoleName(roleName: string): Promise<Permission[]> {
+    return this.rolesService.getPermissionsByRoleName(roleName);
+  }
+
   async findOne(id: string): Promise<User | null> {
-    return this.userRepository.findOne({ where: { id, deletedAt: IsNull() } });
+    return this.userRepository.findOne({
+      where: { id },
+      relations: ['role', 'role.permissions'],
+    });
   }
 
   async findUserByEmail(email: string): Promise<User | null> {
     return this.userRepository.findOne({
-      where: { email, deletedAt: IsNull() },
+      where: { email },
+      relations: ['role', 'role.permissions'],
     });
   }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
+    const { name, email, password, roleId } = createUserDto;
     //Make sure email is unique
-    const existingUser = await this.findUserByEmail(createUserDto.email);
+    const existingUser = await this.findUserByEmail(email);
     if (existingUser) {
       throw new ConflictException('Email already exists');
     }
 
     // Hash the password before saving the user
-    createUserDto.password = await this.passwordService.hash(
-      createUserDto.password,
-    );
+    const passwordHashed = await this.passwordService.hash(password);
 
-    return await this.userRepository.save(createUserDto);
+    // Create a new user instance
+    const user = this.userRepository.create({
+      name,
+      email: email.toLowerCase(),
+      password: passwordHashed,
+      isActive: false, // false is default
+    });
+
+    if (roleId) {
+      const role = await this.rolesService.findOne(roleId);
+      if (!role) {
+        throw new NotFoundException(`Role with ID ${roleId} not found`);
+      }
+      user.role = role;
+    } else {
+      // Gán role mặc định (ví dụ: 'user')
+      const defaultRole = await this.rolesService.findByName('user');
+      if (defaultRole) {
+        user.role = defaultRole;
+      }
+    }
+
+    return await this.userRepository.save(user);
   }
 
   async findAll(
@@ -88,17 +166,37 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    // Check if the email is being updated and if it already exists
+    // Check if the email already exists
+    const { name, email, password, roleId, isActive } = updateUserDto;
 
-    if (updateUserDto.email && updateUserDto.email !== user.email) {
-      const existingUser = await this.findUserByEmail(updateUserDto.email);
+    if (email && email !== user.email) {
+      const existingUser = await this.findUserByEmail(email);
+      // Check if the email already exists
       if (existingUser) {
         throw new ConflictException('Email already exists');
       }
+      // Update the email
+      user.email = email.toLowerCase();
     }
 
-    if (updateUserDto.password) {
-      updateUserDto.password = await this.hashString(updateUserDto.password);
+    if (name && name.trim() !== '') {
+      user.name = toTitleCase(name);
+    }
+    if (isActive !== undefined) {
+      user.isActive = isActive;
+    }
+
+    if (password && password.trim() !== '') {
+      user.password = await this.passwordService.hash(password);
+    }
+
+    if (roleId) {
+      const role = await this.rolesService.findOne(roleId);
+      if (!role) {
+        throw new NotFoundException(`Role with ID ${roleId} not found`);
+      }
+      // Update the role
+      user.role = role;
     }
 
     //merge the updateUserDto with the existing user
@@ -121,15 +219,15 @@ export class UsersService {
     return user;
   }
 
-  private async hashString(str: string): Promise<string> {
-    const salt = await bcrypt.genSalt(10); // Ensure SALT_ROUNDS is a valid number
-    return await bcrypt.hash(str, salt);
-  }
-
-  private async comparePassword(
-    plainPassword: string,
-    hashedPassword: string,
-  ): Promise<boolean> {
-    return await bcrypt.compare(plainPassword, hashedPassword);
+  async restore(id: string) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    // Restore the user
+    await this.userRepository.restore(user.id);
+    return user;
   }
 }

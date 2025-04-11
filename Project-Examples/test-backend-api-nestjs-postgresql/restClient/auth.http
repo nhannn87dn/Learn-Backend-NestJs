@@ -1,0 +1,53 @@
+POST http://localhost:9000/api/v1/auth/login
+Content-Type: application/json
+
+{
+    "email": "root@example.com",
+    "password": "Password@123"
+}
+
+###
+
+POST http://localhost:9000/api/v1/auth/login
+Content-Type: application/json
+
+{
+    "email": "david@example.com",
+    "password": "PassWord@123"
+}
+
+
+### update user
+
+PATCH  http://localhost:9000/api/v1/users/add69903-5802-4751-ae95-646695314f5d
+Content-Type: application/json
+
+{
+    "name": "John Doe",
+    "roleId": "42623cfc-aff7-4624-ae2c-869e3643cf3c"
+}
+
+###
+
+POST http://localhost:9000/api/v1/users
+Content-Type: application/json
+
+{
+    "name": "Will Smith",
+    "email": "will@example.com",
+    "password": "Password@123"
+}
+
+
+### get Profile
+GET http://localhost:9000/api/v1/auth/profile
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZGQ2OTkwMy01ODAyLTQ3NTEtYWU5NS02NDY2OTUzMTRmNWQiLCJuYW1lIjoiSm9obiBEb2UiLCJyb2xlIjoicm9vdCIsInBlcm1pc3Npb25zIjpbXSwiaWF0IjoxNzQ0MTg2OTc4LCJleHAiOjE3NDQyNzMzNzh9.hVvFVOYUMiTuthrIH8xmyn1domqPIhibLyT8Mytlnbg
+
+
+
+### search
+GET http://localhost:9000/api/v1/users?keyword=lisa
+
+### soft delete
+DELETE  http://localhost:9000/api/v1/users/c755e588-4d21-47b0-95f4-b94c53006967

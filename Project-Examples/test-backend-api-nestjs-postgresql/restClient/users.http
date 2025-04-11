@@ -7,6 +7,19 @@ Content-Type: application/json
     "password": "Password@123"
 }
 
+### update role name = user for user
+
+PATCH  http://localhost:9000/api/v1/users/b6c754d4-85ce-4e08-a7c3-ee79a70d7f2b
+Content-Type: application/json
+
+{
+    "roleId": "21bd588e-2128-4b92-abfa-ba6a4b0c5a94"
+}
+
+
+### 
+GET http://localhost:9000/api/v1/users/add69903-5802-4751-ae95-646695314f5d
+
 ###
 
 POST http://localhost:9000/api/v1/users

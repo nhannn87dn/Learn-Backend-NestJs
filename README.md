@@ -57,17 +57,12 @@
     - Tối ưu hóa và bảo trì ứng dụng NestJS
     - Quá trình triển khai (deployment) ứng dụng NestJS
     - Giám sát và gỡ lỗi
+    - Tài liệu hóa API với OpenAPI (Swagger)
 
 12. **Các chủ đề nâng cao**
-    - Caching và Rate Limiting
-    - Testing trong NestJS
 
-13. **Các chủ đề nâng cao**
-
-- Tài liệu hóa API với OpenAPI (Swagger)
-
-14. **Các chủ đề nâng cao**
-
+- Caching và Rate Limiting
+- Testing trong NestJS
 - Tích hợp với microservices
 - Sử dụng WebSockets và Socket.IO
 - Queue & Task schedule
