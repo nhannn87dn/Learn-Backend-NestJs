@@ -1,0 +1,110 @@
+# 1. Register
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "password123"
+  }'
+
+# 2. Login (accessToken sẽ được set vào cookie)
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{
+    "email": "admin@example.com",
+    "password": "password123"
+  }'
+
+# Response sẽ có dạng:
+# {
+#   "message": "Login successful",
+#   "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+#   "user": {
+#     "id": "uuid",
+#     "email": "admin@example.com"
+#   }
+# }
+
+# 3. Access protected route (cookie sẽ tự động gửi)
+curl -X GET http://localhost:3000/api/users/profile \
+  -b cookies.txt
+
+# 4. Refresh token
+curl -X POST http://localhost:3000/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{
+    "refreshToken": "YOUR_REFRESH_TOKEN_HERE"
+  }'
+
+# 5. Test RBAC - Admin only route
+curl -X GET http://localhost:3000/api/users \
+  -b cookies.txt
+
+# 6. Test permission-based route
+curl -X POST http://localhost:3000/api/posts \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{
+    "title": "Test Post",
+    "content": "This is a test post"
+  }'
+
+# 7. Logout
+curl -X POST http://localhost:3000/api/auth/logout \
+  -b cookies.txt
+
+# 8. Revoke all tokens (khi phát hiện token bị đánh cắp)
+curl -X POST http://localhost:3000/api/auth/revoke-all \
+  -b cookies.txt
+
+# ====== POSTMAN TESTING ======
+
+# Postman không tự động lưu cookies như browser
+# Cách test với Postman:
+
+# 1. Login request
+POST http://localhost:3000/api/auth/login
+Headers: Content-Type: application/json
+Body:
+{
+  "email": "admin@example.com",
+  "password": "password123"
+}
+
+# 2. Sau khi login, check tab "Cookies" trong Postman
+#    accessToken sẽ được set tự động
+
+# 3. Lưu refreshToken từ response body vào Postman Environment
+
+# 4. Các request tiếp theo sẽ tự động gửi cookie
+
+# ====== TEST SCENARIOS ======
+
+# Scenario 1: Token Expiration
+# 1. Login
+# 2. Đợi > 15 phút (access token hết hạn)
+# 3. Gọi API -> sẽ nhận 401 Unauthorized
+# 4. Gọi /auth/refresh với refreshToken
+# 5. Nhận access token mới
+
+# Scenario 2: Token Revocation
+# 1. Login
+# 2. Gọi /auth/revoke-all
+# 3. Thử gọi bất kỳ API nào -> sẽ nhận 401
+
+# Scenario 3: Device Fingerprint Check
+# 1. Login từ browser A
+# 2. Copy accessToken cookie
+# 3. Thử dùng token đó từ browser B (khác user-agent)
+# 4. Sẽ nhận error "Token used from different device"
+
+# Scenario 4: Permission Check
+# 1. Login với user có role "user"
+# 2. Thử tạo post (cần permission posts:create)
+# 3. Sẽ nhận 403 Forbidden
+
+# Scenario 5: Role Check
+# 1. Login với user có role "editor"
+# 2. Thử GET /users (cần role admin)
+# 3. Sẽ nhận 403 Forbidden
