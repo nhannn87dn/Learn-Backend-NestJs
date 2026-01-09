@@ -1,0 +1,48 @@
+# docker/Dockerfile.prod
+
+# Stage 1: Build
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+
+# Cài đặt tất cả dependencies (cần devDependencies để build)
+RUN npm ci
+
+COPY . .
+
+# Build ứng dụng
+RUN npm run build
+
+# Stage 2: Production
+FROM node:20-alpine AS production
+
+# Cài đặt dumb-init để xử lý signals tốt hơn
+RUN apk add --no-cache dumb-init
+
+# Tạo user không phải root để chạy app
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nestjs -u 1001
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Chỉ cài đặt production dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy built app từ builder stage
+COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
+
+# Switch sang user không phải root
+USER nestjs
+
+EXPOSE 3000
+
+# Sử dụng dumb-init để xử lý signals
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start production server
+CMD ["node", "dist/main.js"]
