@@ -1,0 +1,31 @@
+### Test API for BooksController
+
+# Get all books
+GET http://localhost:3000/books
+
+# Get a book by ID
+GET http://localhost:3000/books/1
+
+# Create a new book
+POST http://localhost:3000/books
+Content-Type: application/json
+
+{
+  "title": "Clean Code",
+  "description": "A Handbook of Agile Software Craftsmanship",
+  "pages": 464,
+  "genres": ["Programming", "Software Development"]
+}
+
+# Update a book by ID
+PUT http://localhost:3000/books/1
+Content-Type: application/json
+
+{
+  "title": "Clean Code - Updated",
+  "description": "Updated description for Clean Code",
+  "pages": 500
+}
+
+# Delete a book by ID
+DELETE http://localhost:3000/books/1

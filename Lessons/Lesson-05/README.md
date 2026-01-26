@@ -1,665 +1,1887 @@
-# Provider,  Dependency Injection và Module
+# Lesson 05 - Kết nối Database
 
-Dưới đây là bài viết chi tiết về **Provider** và **Dependency Injection** trong NestJS, được xây dựng dựa trên tài liệu chính thức. Bài viết sẽ giúp bạn hiểu rõ khái niệm, cách tạo provider và cách sử dụng cơ chế Dependency Injection (DI) trong ứng dụng NestJS.
+## Mục tiêu bài học
 
----
-
-## 1. Giới Thiệu Về Provider và Dependency Injection
-
-### a. Provider là gì?
-
-- **Provider** là những lớp, giá trị hoặc factory function cung cấp các dịch vụ, logic nghiệp vụ hoặc dữ liệu cho ứng dụng.
-- Provider được sử dụng để chia sẻ logic và dữ liệu giữa các thành phần như controller, service, repository,…
-- Một provider có thể là một lớp thông thường được đánh dấu bằng decorator `@Injectable()`, cho phép NestJS quản lý vòng đời của nó.
-
-### b. Dependency Injection (DI)
-
-- **Dependency Injection** là một kỹ thuật thiết kế phần mềm giúp tách biệt sự phụ thuộc giữa các thành phần.
-- DI trong NestJS cho phép tự động khởi tạo và cung cấp các instance của provider cho những nơi cần sử dụng, làm cho mã nguồn dễ bảo trì, mở rộng và kiểm thử.
-- Khi một lớp cần sử dụng một provider, bạn chỉ cần khai báo dependency trong constructor và NestJS sẽ tự động "tiêm" (inject) nó.
+- Hiểu khái niệm ORM và lợi ích của nó
+- Tìm hiểu về TypeORM và cách tích hợp với NestJS
+- Kết nối và cấu hình PostgreSQL database
+- Làm việc với Entity và Repository pattern
+- Thực hiện các thao tác CRUD cơ bản
+- Hiểu sự khác biệt giữa Entity và DTO Response
+- Áp dụng Data Mapper Pattern
+- Cấu hình multi database connection
 
 ---
 
-## 2. Cách Tạo Provider
+## 1. ORM là gì?
 
-### a. Sử Dụng Decorator `@Injectable()`
+### 1.1. Khái niệm về ORM
 
-Để tạo một provider đơn giản, bạn đánh dấu lớp đó bằng decorator `@Injectable()`. Điều này cho phép NestJS nhận biết lớp đó là một provider và quản lý vòng đời của nó.
+**ORM** (Object-Relational Mapping) là một kỹ thuật lập trình cho phép bạn **ánh xạ** (mapping) giữa:
+- **Objects** trong code (class, instance)
+- **Tables** trong relational database (bảng, cột, hàng)
 
-**Ví dụ:**
+**Ví dụ đơn giản:**
 
-```typescript
-import { Injectable } from '@nestjs/common';
-
-@Injectable()
-export class UsersService {
-  private users = ['Alice', 'Bob', 'Charlie'];
-
-  findAll(): string[] {
-    return this.users;
-  }
-
-  findOne(id: number): string {
-    return this.users[id] || 'Không tìm thấy người dùng';
-  }
-}
+Thay vì viết SQL:
+```sql
+SELECT * FROM books WHERE id = 1;
+INSERT INTO books (title, description, pages) VALUES ('Clean Code', 'A handbook...', 464);
 ```
 
-**Giải thích:**
-
-- `@Injectable()`: Đánh dấu `UsersService` là một provider có thể được sử dụng cho Dependency Injection.
-- Lớp chứa các phương thức xử lý logic nghiệp vụ như `findAll()` và `findOne()`.
-
-### b. Các Loại Provider Khác
-
-NestJS hỗ trợ nhiều cách đăng ký provider tùy thuộc vào nhu cầu:
-
-
-- **Class Provider** là cách thông dụng nhất: đăng ký trực tiếp một lớp được đánh dấu bằng `@Injectable()`.  
-- Khi một lớp được đăng ký dưới dạng class provider, NestJS sẽ tự động tạo instance của lớp đó để sử dụng ở các nơi cần thiết.
-
-**Ví dụ:**
-
+Bạn có thể làm việc với objects:
 ```typescript
-import { Injectable } from '@nestjs/common';
+// Lấy sách
+const book = await bookRepository.findOne({ where: { id: 1 } });
 
-@Injectable()
-export class UsersService {
-  private users = ['Alice', 'Bob', 'Charlie'];
-
-  findAll(): string[] {
-    return this.users;
-  }
-}
+// Tạo sách mới
+const newBook = bookRepository.create({
+  title: 'Clean Code',
+  description: 'A handbook...',
+  pages: 464
+});
+await bookRepository.save(newBook);
 ```
 
-- **Value Provider** cho phép bạn đăng ký một giá trị cụ thể (có thể là đối tượng, hàm,...) làm provider.  
-- Đây là cách hữu ích để cung cấp các cấu hình hoặc hằng số cho ứng dụng.
+### 1.2. ORM giải quyết vấn đề gì?
 
-**Ví dụ:**
+**Vấn đề 1: SQL Injection**
 
+Không dùng ORM (dễ bị SQL Injection):
 ```typescript
-export const CONFIG = {
-  port: 3000,
-  host: 'localhost',
+// ❌ NGUY HIỂM
+const userId = request.params.id; // "1 OR 1=1"
+const query = `SELECT * FROM users WHERE id = ${userId}`;
+// SQL: SELECT * FROM users WHERE id = 1 OR 1=1
+// Trả về tất cả users!
+```
+
+Dùng ORM (an toàn):
+```typescript
+// ✅ AN TOÀN
+const user = await userRepository.findOne({ 
+  where: { id: userId } 
+});
+// ORM tự động escape và validate
+```
+
+**Vấn đề 2: Code lặp lại nhiều**
+
+Không dùng ORM:
+```typescript
+// Phải viết SQL cho mọi thao tác
+const createUser = async (data) => {
+  const query = `INSERT INTO users (name, email) VALUES (?, ?)`;
+  return await db.execute(query, [data.name, data.email]);
 };
 
-// Trong module:
-@Module({
-  providers: [
-    {
-      provide: 'CONFIG_TOKEN',
-      useValue: CONFIG,
-    },
-  ],
-})
-export class AppModule {}
+const updateUser = async (id, data) => {
+  const query = `UPDATE users SET name = ?, email = ? WHERE id = ?`;
+  return await db.execute(query, [data.name, data.email, id]);
+};
+
+const deleteUser = async (id) => {
+  const query = `DELETE FROM users WHERE id = ?`;
+  return await db.execute(query, [id]);
+};
 ```
 
+Dùng ORM:
+```typescript
+// ORM cung cấp sẵn methods
+await userRepository.save(userData);
+await userRepository.update(id, userData);
+await userRepository.delete(id);
+```
 
-- **Factory Provider** sử dụng một factory function để trả về giá trị hoặc đối tượng cần được cung cấp.  
-- Điều này cho phép bạn tùy biến quá trình tạo instance, đặc biệt hữu ích khi cần thực hiện logic phức tạp hoặc phụ thuộc vào các giá trị khác.
-
-**Ví dụ:**
+**Vấn đề 3: Database-specific syntax**
 
 ```typescript
-@Module({
-  providers: [
-    {
-      provide: 'CUSTOM_SERVICE',
-      useFactory: (configService: ConfigService) => {
-        // Sử dụng ConfigService để tạo ra đối tượng custom
-        return new CustomService(configService.get('API_KEY'));
-      },
-      inject: [ConfigService],
-    },
-  ],
-})
-export class AppModule {}
+// PostgreSQL
+SELECT * FROM users LIMIT 10 OFFSET 20;
+
+// MySQL
+SELECT * FROM users LIMIT 20, 10;
+
+// SQL Server
+SELECT * FROM users ORDER BY id OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY;
+
+// Với ORM - cùng một syntax
+userRepository.find({ 
+  skip: 20, 
+  take: 10 
+});
 ```
 
-
-- **Async Providers** được sử dụng khi việc khởi tạo provider cần thực hiện các tác vụ bất đồng bộ, chẳng hạn như đọc cấu hình từ file, kết nối đến cơ sở dữ liệu hoặc các dịch vụ bên ngoài.  
-- Thông thường, bạn sử dụng `useFactory` với một hàm bất đồng bộ và khai báo các dependency cần tiêm.
-
-**Ví dụ:**
+**Vấn đề 4: Khó maintain và refactor**
 
 ```typescript
-@Module({
-  providers: [
-    {
-      provide: 'ASYNC_CONFIG',
-      useFactory: async () => {
-        const config = await loadConfig(); // Giả sử loadConfig là hàm bất đồng bộ
-        return config;
-      },
-    },
-  ],
-})
-export class AppModule {}
+// Nếu đổi tên column từ 'full_name' sang 'name'
+// Không dùng ORM: phải tìm và sửa tất cả SQL queries trong code
+
+// Dùng ORM: chỉ cần sửa trong Entity definition
+@Entity()
+class User {
+  @Column({ name: 'full_name' }) // Mapping column name
+  name: string;
+}
 ```
+
+### 1.3. ORM và SQL truyền thống
+
+**So sánh:**
+
+| Tiêu chí | SQL truyền thống | ORM |
+|----------|------------------|-----|
+| **Cú pháp** | SQL queries | Object methods |
+| **Type Safety** | Không | Có (với TypeScript) |
+| **SQL Injection** | Dễ bị nếu không cẩn thận | Tự động prevent |
+| **Database Migration** | Phải tự viết | Tools hỗ trợ |
+| **Quan hệ (Relations)** | Phải tự JOIN | Tự động load |
+| **Performance** | Tối ưu hơn nếu viết tốt | Có thể chậm hơn một chút |
+| **Learning Curve** | Cần biết SQL | Cần học ORM |
+
+**Khi nào dùng SQL thuần?**
+- Query phức tạp, cần tối ưu cao
+- Reporting, analytics
+- Bulk operations lớn
+- Stored procedures
+
+**Khi nào dùng ORM?**
+- CRUD operations thông thường
+- Application với nhiều business logic
+- Cần type safety và maintainability
+- Team lớn, cần consistent code style
 
 ---
 
-## 3. Đăng Ký Provider Trong Module
+## 2. Giới thiệu TypeORM / Prisma
 
-Để sử dụng provider, bạn cần đăng ký nó trong module thông qua thuộc tính `providers` của decorator `@Module()`. Điều này giúp NestJS biết được các provider nào có thể được inject vào các thành phần khác.
+### 2.1. Tổng quan về TypeORM
 
-**Ví dụ:**
+**TypeORM** là một ORM được viết bằng TypeScript, hỗ trợ nhiều databases:
+- PostgreSQL
+- MySQL / MariaDB
+- SQLite
+- Microsoft SQL Server
+- Oracle
+- MongoDB (partial support)
+
+**Đặc điểm:**
+- Sử dụng **Decorators** để define entities
+- Hỗ trợ **Active Record** và **Data Mapper** patterns
+- Migration system mạnh mẽ
+- Query Builder linh hoạt
+- Tích hợp tốt với NestJS
+
+**Ví dụ Entity với TypeORM:**
 
 ```typescript
+import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+
+@Entity('books')
+export class Book {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  title: string;
+
+  @Column()
+  description: string;
+
+  @Column()
+  pages: number;
+}
+```
+
+### 2.2. Tổng quan về Prisma
+
+**Prisma** là một modern ORM với approach khác:
+- Schema được định nghĩa trong file `.prisma`
+- Type-safe client được generate tự động
+- Migration system đơn giản
+- Prisma Studio (GUI tool)
+
+**Ví dụ Schema với Prisma:**
+
+```prisma
+model Book {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  pages       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+```
+
+### 2.3. So sánh TypeORM và Prisma
+
+| Tiêu chí | TypeORM | Prisma |
+|----------|---------|--------|
+| **Schema Definition** | Decorators trong code | Schema file (.prisma) |
+| **Type Generation** | Manual | Auto-generated |
+| **Learning Curve** | Trung bình | Dễ hơn |
+| **Migration** | Mạnh, linh hoạt | Đơn giản hơn |
+| **Query Builder** | Có | Không (dùng API) |
+| **Raw SQL** | Dễ dàng | Khó hơn |
+| **Relations** | Flexible | Declarative, dễ hiểu |
+| **Performance** | Tốt | Tốt hơn một chút |
+| **Community** | Lớn hơn | Đang phát triển nhanh |
+| **NestJS Integration** | Native support | Cần setup thêm |
+
+**TypeORM:**
+```typescript
+// Query với TypeORM
+const books = await bookRepository
+  .createQueryBuilder('book')
+  .where('book.pages > :pages', { pages: 300 })
+  .orderBy('book.title', 'ASC')
+  .getMany();
+```
+
+**Prisma:**
+```typescript
+// Query với Prisma
+const books = await prisma.book.findMany({
+  where: {
+    pages: { gt: 300 }
+  },
+  orderBy: {
+    title: 'asc'
+  }
+});
+```
+
+### 2.4. Lý do chọn TypeORM trong bài học này
+
+1. **Native NestJS Integration**: TypeORM có module chính thức từ NestJS
+2. **Decorators**: Nhất quán với NestJS style
+3. **Flexible**: Hỗ trợ cả Active Record và Data Mapper patterns
+4. **Raw SQL**: Dễ dàng khi cần performance cao
+5. **Community**: Tài liệu và community support phong phú
+6. **Learning**: Học TypeORM giúp hiểu sâu về ORM patterns
+
+> **Lưu ý**: Cả TypeORM và Prisma đều là lựa chọn tốt. Chọn tool nào phụ thuộc vào requirements của dự án.
+
+---
+
+## 3. Cấu hình kết nối database (PostgreSQL)
+
+Xem tài liệu chính thức về [TypeORM trong NestJS](https://docs.nestjs.com/recipes/sql-typeorm)
+
+### 3.1. Cài đặt package cần thiết
+
+```bash
+# Cài đặt TypeORM và PostgreSQL driver
+npm install @nestjs/typeorm typeorm pg
+```
+
+**Packages:**
+- `@nestjs/typeorm`: NestJS wrapper cho TypeORM
+- `typeorm`: ORM library
+- `pg`: PostgreSQL driver
+
+### 3.2. Cấu hình .env
+
+Thêm các biến môi trường kết nối database vào trong file `.env`:
+
+```bash
+# .env
+# Database Configuration
+DB_TYPE=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=your_password
+DB_DATABASE=bookstore_db
+DB_SYNCHRONIZE=true  # Chỉ dùng trong development, KHÔNG dùng trong production
+DB_LOGGING=true
+
+# Application Configuration
+PORT=3000
+NODE_ENV=development
+```
+
+**Giải thích:**
+- `DB_TYPE`: Loại database (postgres, mysql, sqlite...)
+- `DB_HOST`: Địa chỉ database server
+- `DB_PORT`: Port của database (PostgreSQL default: 5432, MySQL: 3306)
+- `DB_USERNAME`: Username để connect
+- `DB_PASSWORD`: Password
+- `DB_DATABASE`: Tên database
+- `DB_SYNCHRONIZE`: Tự động sync schema (⚠️ chỉ dev, KHÔNG production)
+- `DB_LOGGING`: Log SQL queries
+
+**⚠️ Quan trọng về DB_SYNCHRONIZE:**
+
+```typescript
+// ✅ Development
+DB_SYNCHRONIZE=true  // Tự động tạo/update tables
+
+// ❌ Production
+DB_SYNCHRONIZE=false // PHẢI dùng migrations
+```
+
+Tại sao không dùng synchronize trong production?
+- Có thể mất dữ liệu khi alter table
+- Không có version control cho schema changes
+- Không rollback được nếu có lỗi
+- Performance issues khi app khởi động
+
+### 3.3. Cấu hình kết nối trong ứng dụng NestJS
+
+#### Bước 1: Tạo database configuration file
+
+- Cách Bình thường [database.config.ts](./database.config.ts)
+- Sử dụng Joi validate [database-joi.config.ts](./database-joi.config.ts)
+
+Giải thích file cấu hình:
+
+- `type`: Loại database (postgres, mysql...)
+- `host`, `port`, `username`, `password`, `database`: Thông tin kết nối
+- `entities`: Đường dẫn đến các entity files
+- `synchronize`: Tự động sync schema (chỉ dev)
+- `logging`: Bật log SQL queries
+- `ssl`: Cấu hình SSL nếu cần, nếu dùng trong production với cloud DB
+- `extra`: Các options bổ sung cho driver.
+
+
+#### Bước 2: Import ConfigModule và TypeOrmModule trong AppModule
+
+```typescript
+// src/app.module.ts
 import { Module } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { UsersController } from './users.controller';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import databaseConfig from './config/database.config';
+import { BooksModule } from './books/books.module';
 
 @Module({
-  controllers: [UsersController],
-  providers: [UsersService],
+  imports: [
+    // Config Module - Load environment variables
+    ConfigModule.forRoot({
+      isGlobal: true, // Làm cho ConfigService available ở mọi nơi
+      load: [databaseConfig], // Load database configuration
+      envFilePath: '.env',
+      //validation options
+      validationOptions: {
+        allowUnknown: true, // Cho phép env variables không được define trong schema
+        abortEarly: false,  // Validate tất cả fields, không dừng ở error đầu tiên
+      },
+    }),
+
+    // TypeORM Module - Database connection
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        ...configService.get('database'),
+      }),
+    }),
+
+    // Feature Modules
+    BooksModule,
+  ],
 })
-export class UsersModule {}
+export class AppModule {}
 ```
 
 **Giải thích:**
 
-- **controllers:** Danh sách các controller sử dụng provider.
-- **providers:** Danh sách các provider được module cung cấp. Khi một controller hay service cần sử dụng `UsersService`, NestJS sẽ tự động tiêm instance của nó.
+**ConfigModule.forRoot():**
+- `isGlobal: true`: ConfigService có thể inject ở mọi module mà không cần import
+- `load: [databaseConfig]`: Load configuration từ file
+- `envFilePath: '.env'`: Đường dẫn đến file environment
+
+**TypeOrmModule.forRootAsync():**
+- Async configuration cho phép inject dependencies
+- `useFactory`: Function trả về TypeORM options
+- Sử dụng ConfigService để lấy database config
+
+#### Bước 3: Cấu hình TypeOrmModule trong Feature Module
+
+Ví dụ bạn muôn sử dụng Book entity trong BooksModule:
+
+```typescript
+// src/books/books.module.ts
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { BooksController } from './books.controller';
+import { BooksService } from './books.service';
+import { Book } from './entities/book.entity';
+
+@Module({
+  imports: [
+    // Đăng ký entities cho module này
+    TypeOrmModule.forFeature([Book]),
+  ],
+  controllers: [BooksController],
+  providers: [BooksService],
+  exports: [BooksService], // Export nếu module khác cần dùng
+})
+export class BooksModule {}
+```
+
+**TypeOrmModule.forFeature([Book]):**
+- Đăng ký Book entity cho module này
+- Tạo Repository cho Book entity
+- Repository có thể inject vào services
+
+Trong BooksService:
+
+```typescript
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Book } from './entities/book.entity';
+@Injectable()
+export class BooksService {
+  constructor(
+    @InjectRepository(Book)
+    private readonly bookRepository: Repository<Book>,
+  ) {}
+  // Ví dụ method lấy tất cả sách
+  getAllBooks() {
+    return this.bookRepository.find();
+  }
+}
+```
+
+**@InjectRepository(Book):**
+- Decorator để inject Book Repository
+- TypeORM tự động tạo Repository từ Entity
+- Repository<Book> là type của repository
+
+
+Qua `repository`, bạn có thể thực hiện các thao tác truy vấn trên Book entity.
+
+
+### 3.4. Database module trong NestJS: forRoot và forFeature
+
+**Database module là gì?**
+
+Database module (TypeOrmModule trong trường hợp này) là một module đặc biệt trong NestJS dùng để cấu hình và quản lý kết nối đến database cũng như đăng ký các entities và repositories.
+
+Có hai phương thức chính để cấu hình database module:
+
+**forRoot() - Global Database Connection:**
+
+```typescript
+// Chỉ gọi 1 lần trong AppModule
+TypeOrmModule.forRoot({
+  type: 'postgres',
+  host: 'localhost',
+  // ... other options
+  entities: [__dirname + '/**/*.entity{.ts,.js}'],
+})
+```
+
+**Chức năng:**
+- Thiết lập connection đến database
+- Load tất cả entities
+- Tạo DataSource (connection pool)
+- Chỉ gọi 1 lần trong root module (AppModule)
+
+**forFeature() - Feature-specific Repositories:**
+
+```typescript
+// Gọi trong mỗi feature module
+TypeOrmModule.forFeature([Book, Author, Category])
+```
+
+**Chức năng:**
+- Đăng ký entities cụ thể cho module
+- Tạo repositories cho các entities
+- Repositories có thể inject vào services trong module đó
+- Gọi trong mỗi feature module cần sử dụng entities
+
+**Ví dụ flow:**
+
+Khi bạn cần sử dụng Book và Author entities trong ứng dụng, bạn cần làm theo sau:
+
+```typescript
+// 1. AppModule - forRoot()
+@Module({
+  imports: [
+    TypeOrmModule.forRoot({ /* config */ }),
+    //Đăng ký các feature modules vào AppModule
+    BooksModule,
+    AuthorsModule,
+  ],
+})
+export class AppModule {}
+
+// 2. BooksModule - forFeature()
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Book]), // Sử dụng Book entity cho BooksModule
+  ],
+  // ...
+})
+export class BooksModule {}
+
+// 3. AuthorsModule - forFeature()
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Author]), // Sử dụng Author entity cho AuthorsModule
+  ],
+  // ...
+})
+export class AuthorsModule {}
+```
 
 ---
 
-## 4. Dependency Injection Trong NestJS
+## 4. Entity & Repository
 
-### a. Cách Tiêm Provider Vào Controller Hoặc Service
+### 4.1. Entity là gì?
 
-Để sử dụng provider trong một lớp khác (ví dụ, controller), bạn khai báo dependency trong constructor của lớp đó.
+**Entity** là một class đại diện cho một **table** trong database. Mỗi instance của Entity tương ứng với một **row** trong table.
 
-**Ví dụ: Tiêm `UsersService` vào `UsersController`:**
+> Xem tài liệu chính thức về [Entities](https://typeorm.io/entities)
+
+**Ví dụ trực quan:**
+
+```
+Database Table: books
++----+-------------+------------------+-------+
+| id | title       | description      | pages |
++----+-------------+------------------+-------+
+| 1  | Clean Code  | A handbook...    | 464   |
+| 2  | Pragmatic   | Your journey...  | 352   |
++----+-------------+------------------+-------+
+
+↓ Ánh xạ thành ↓
+
+Entity Class: Book
+class Book {
+  id: 1
+  title: 'Clean Code'
+  description: 'A handbook...'
+  pages: 464
+}
+```
+
+### 4.2. Column, Primary Key, Data Types
+
+**Tạo Book Entity:**
 
 ```typescript
-import { Controller, Get, Param } from '@nestjs/common';
-import { UsersService } from './users.service';
+// src/books/entities/book.entity.ts
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
-@Controller('users')
-export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+@Entity('books') // Tên table trong database
+export class Book {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'varchar', length: 255 })
+  title: string;
+
+  @Column({ type: 'text' })
+  description: string;
+
+  @Column({ type: 'int' })
+  pages: number;
+
+  @Column('simple-array', { nullable: true })
+  genres: string[];
+
+  @Column({ type: 'varchar', length: 20, nullable: true, unique: true })
+  isbn: string;
+
+  @Column({ type: 'int', nullable: true })
+  publishedYear: number;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}
+```
+
+**Giải thích các decorators:**
+
+**@Entity('books'):**
+- Đánh dấu class là một entity
+- `'books'` là tên table trong database
+- Nếu không truyền tên, TypeORM sẽ dùng tên class (lowercase)
+
+**@PrimaryGeneratedColumn():**
+- Primary key tự động tăng (auto-increment)
+- Tương đương SQL: `id SERIAL PRIMARY KEY` (PostgreSQL) hoặc `id INT AUTO_INCREMENT PRIMARY KEY` (MySQL)
+
+**@Column():**
+- Đánh dấu property là một column
+- Có thể config type, length, nullable, default, unique...
+
+**@CreateDateColumn():**
+- Tự động set thời gian khi record được tạo
+- Type: `timestamp with time zone`
+
+**@UpdateDateColumn():**
+- Tự động update thời gian khi record được cập nhật
+
+**Column Options:**
+
+```typescript
+@Column({
+  type: 'varchar',      // Kiểu dữ liệu
+  length: 255,          // Độ dài (cho string)
+  nullable: true,       // Có thể null không
+  unique: true,         // Giá trị unique
+  default: 'default',   // Giá trị mặc định
+  name: 'column_name',  // Tên column trong DB (nếu khác property name)
+  comment: 'Comment',   // Comment trong DB
+})
+propertyName: string;
+```
+
+- Xem chi tiết về [Column Options](https://typeorm.io/docs/entity/entities#column-options)
+
+**Data Types phổ biến:**
+
+| TypeScript Type | TypeORM Type | PostgreSQL Type | MySQL Type |
+|----------------|--------------|-----------------|------------|
+| `string` | `varchar` | `varchar(n)` | `VARCHAR(n)` |
+| `string` | `text` | `text` | `TEXT` |
+| `number` | `int` | `integer` | `INT` |
+| `number` | `bigint` | `bigint` | `BIGINT` |
+| `number` | `decimal` | `decimal(p,s)` | `DECIMAL(p,s)` |
+| `boolean` | `boolean` | `boolean` | `TINYINT(1)` |
+| `Date` | `timestamp` | `timestamp` | `DATETIME` |
+| `Date` | `date` | `date` | `DATE` |
+| `object` | `json` | `json` | `JSON` |
+| `string[]` | `simple-array` | `text` | `TEXT` |
+
+- Xem chi tiết về [TypeORM Column Types](https://typeorm.io/docs/entity/entities#column-types)
+
+**Ví dụ đầy đủ các column types:**
+
+```typescript
+@Entity()
+export class Example {
+  @PrimaryGeneratedColumn('uuid') // UUID instead of auto-increment
+  id: string;
+
+  @Column('varchar', { length: 100 })
+  name: string;
+
+  @Column('text')
+  longText: string;
+
+  @Column('int')
+  intNumber: number;
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  price: number; // 12345678.90
+
+  @Column('boolean', { default: true })
+  isActive: boolean;
+
+  @Column('json')
+  metadata: object;
+
+  @Column('simple-array')
+  tags: string[]; // Lưu dưới dạng "tag1,tag2,tag3"
+
+  @Column('timestamp', { default: () => 'CURRENT_TIMESTAMP' })
+  timestamp: Date;
+
+  @Column({ type: 'enum', enum: ['admin', 'user', 'guest'], default: 'user' })
+  role: string;
+}
+```
+
+### 4.3. Repository Pattern
+
+**Repository** là một pattern cung cấp một abstraction layer để truy cập database. Trong TypeORM, Repository là class chứa các methods để thao tác với entities.
+
+**Repository cung cấp sẵn các methods:**
+
+```typescript
+// Finding
+find()              // Lấy tất cả
+findOne()           // Lấy 1 record
+findOneBy()         // Lấy 1 record theo điều kiện
+findAndCount()      // Lấy data + count
+findBy()            // Lấy theo điều kiện
+
+// Creating
+create()            // Tạo entity instance
+save()              // Lưu vào database
+
+// Updating
+update()            // Update theo điều kiện
+save()              // Cũng dùng để update
+
+// Deleting
+delete()            // Xóa theo điều kiện
+remove()            // Xóa entity instance
+softDelete()        // Soft delete (đánh dấu deleted)
+
+// Others
+count()             // Đếm
+exist()             // Kiểm tra tồn tại
+createQueryBuilder() // Tạo complex queries
+```
+
+- Xem thêm chi tiết về [Find Options](https://typeorm.io/docs/working-with-entity-manager/find-options)
+- Xem thêm chi tiết về [Repository API](https://typeorm.io/docs/working-with-entity-manager/repository-api)
+
+---
+
+## 5. CRUD cơ bản
+
+### 5.1. Tạo Entity
+
+Chúng ta đã tạo Book Entity ở phần trước. Bây giờ implement CRUD operations.
+
+### 5.2. Sử dụng Repository để thực hiện các thao tác CRUD
+
+**Complete BooksService với CRUD:**
+
+```typescript
+// src/books/books.service.ts
+import { 
+  Injectable, 
+  NotFoundException, 
+  ConflictException,
+  BadRequestException 
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, Like, Between, In } from 'typeorm';
+import { Book } from './entities/book.entity';
+import { CreateBookDto } from './dto/create-book.dto';
+import { UpdateBookDto } from './dto/update-book.dto';
+import { FilterBooksDto } from './dto/filter-books.dto';
+
+@Injectable()
+export class BooksService {
+  constructor(
+    @InjectRepository(Book)
+    private readonly bookRepository: Repository<Book>,
+  ) {}
+
+  /**
+   * CREATE - Tạo sách mới
+   */
+  async create(createBookDto: CreateBookDto): Promise<Book> {
+    // Kiểm tra ISBN trùng lặp
+    if (createBookDto.isbn) {
+      const existingBook = await this.bookRepository.findOne({
+        where: { isbn: createBookDto.isbn },
+      });
+
+      if (existingBook) {
+        throw new ConflictException(`ISBN ${createBookDto.isbn} đã tồn tại`);
+      }
+    }
+
+    // Tạo entity instance từ DTO
+    const book = this.bookRepository.create(createBookDto);
+
+    // Lưu vào database
+    return await this.bookRepository.save(book);
+  }
+
+  /**
+   * READ - Lấy tất cả sách
+   */
+  async findAll() {
+    const books = await this.bookRepository.find({
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    return books;
+  }
+
+  /**
+   * READ - Lấy một sách theo ID
+   */
+  async findOne(id: number): Promise<Book> {
+    const book = await this.bookRepository.findOne({
+      where: { id },
+    });
+
+    if (!book) {
+      throw new NotFoundException(`Không tìm thấy sách với ID ${id}`);
+    }
+
+    return book;
+  }
+
+  /**
+   * READ - Lấy sách theo ISBN
+   */
+  async findByISBN(isbn: string): Promise<Book> {
+    const book = await this.bookRepository.findOne({
+      where: { isbn },
+    });
+
+    if (!book) {
+      throw new NotFoundException(`Không tìm thấy sách với ISBN ${isbn}`);
+    }
+
+    return book;
+  }
+
+  /**
+   * UPDATE - Cập nhật sách
+   */
+  async update(id: number, updateBookDto: UpdateBookDto): Promise<Book> {
+    // Kiểm tra sách tồn tại
+    const book = await this.findOne(id);
+
+    // Kiểm tra ISBN trùng lặp (nếu update ISBN)
+    if (updateBookDto.isbn && updateBookDto.isbn !== book.isbn) {
+      const existingBook = await this.bookRepository.findOne({
+        where: { isbn: updateBookDto.isbn },
+      });
+
+      if (existingBook) {
+        throw new ConflictException(`ISBN ${updateBookDto.isbn} đã tồn tại`);
+      }
+    }
+
+    // Merge update data vào entity
+    Object.assign(book, updateBookDto);
+
+    // Save (TypeORM tự động biết đây là update)
+    return await this.bookRepository.save(book);
+  }
+
+  /**
+   * DELETE - Xóa sách
+   */
+  async remove(id: number): Promise<void> {
+    const result = await this.bookRepository.delete(id);
+
+    if (result.affected === 0) {
+      throw new NotFoundException(`Không tìm thấy sách với ID ${id}`);
+    }
+  }
+
+  /**
+   * Các methods bổ sung
+   */
+
+  // Đếm số lượng sách
+  async count(): Promise<number> {
+    return await this.bookRepository.count();
+  }
+
+  // Kiểm tra sách tồn tại
+  async exists(id: number): Promise<boolean> {
+    return await this.bookRepository.exist({ where: { id } });
+  }
+
+  // Bulk create
+  async createMany(createBookDtos: CreateBookDto[]): Promise<Book[]> {
+    const books = this.bookRepository.create(createBookDtos);
+    return await this.bookRepository.save(books);
+  }
+
+  // Soft delete (nếu có deletedAt column)
+  async softRemove(id: number): Promise<void> {
+    const result = await this.bookRepository.softDelete(id);
+
+    if (result.affected === 0) {
+      throw new NotFoundException(`Không tìm thấy sách với ID ${id}`);
+    }
+  }
+}
+```
+
+**Giải thích các Repository methods:**
+
+**1. create() - Tạo entity instance:**
+```typescript
+const book = this.bookRepository.create(createBookDto);
+// Chỉ tạo object, CHƯA save vào DB
+```
+
+**2. save() - Lưu vào database:**
+```typescript
+await this.bookRepository.save(book);
+// INSERT nếu chưa có id
+// UPDATE nếu đã có id
+```
+
+**3. findOne() - Tìm một record:**
+```typescript
+const book = await this.bookRepository.findOne({
+  where: { id: 1 },
+  // relations: ['author'], // Load relations
+  // select: ['id', 'title'], // Select specific columns
+});
+```
+
+**4. find() - Tìm nhiều records:**
+```typescript
+const books = await this.bookRepository.find({
+  where: { pages: Between(100, 500) },
+  order: { title: 'ASC' },
+  skip: 0,
+  take: 10,
+});
+```
+
+**5. delete() - Xóa theo điều kiện:**
+```typescript
+await this.bookRepository.delete({ id: 1 });
+await this.bookRepository.delete([1, 2, 3]);
+```
+
+**6. update() - Update theo điều kiện:**
+```typescript
+await this.bookRepository.update(
+  { id: 1 },
+  { title: 'New Title' }
+);
+```
+
+**7. createQueryBuilder() - Complex queries:**
+```typescript
+const books = await this.bookRepository
+  .createQueryBuilder('book')
+  .where('book.pages > :pages', { pages: 300 })
+  .andWhere('book.title LIKE :title', { title: '%Code%' })
+  .orderBy('book.createdAt', 'DESC')
+  .getMany();
+```
+
+**Where operators:**
+
+```typescript
+import { Like, Between, In, MoreThan, LessThan, Not, IsNull } from 'typeorm';
+
+// LIKE
+{ title: Like('%Clean%') }
+
+// BETWEEN
+{ pages: Between(100, 500) }
+
+// IN
+{ id: In([1, 2, 3]) }
+
+// Comparison
+{ pages: MoreThan(300) }
+{ pages: LessThan(500) }
+
+// NOT
+{ id: Not(1) }
+
+// NULL
+{ deletedAt: IsNull() }
+
+// Multiple conditions
+{ 
+  pages: MoreThan(300),
+  title: Like('%Code%')
+}
+```
+
+**Tích hợp BookService vào BookController**
+
+```typescript
+// src/books/books.controller.ts
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  ParseIntPipe,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { BooksService } from './books.service';
+import { CreateBookDto } from './dto/create-book.dto';
+import { UpdateBookDto } from './dto/update-book.dto';
+import { FilterBooksDto } from './dto/filter-books.dto';
+import { ApiResponseDto, PaginatedResponseDto } from '../common/dto/response.dto';
+
+@Controller('books')
+export class BooksController {
+  constructor(private readonly booksService: BooksService) {}
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  async create(@Body() createBookDto: CreateBookDto) {
+    const book = await this.booksService.create(createBookDto);
+    return new ApiResponseDto(book, 'Tạo sách mới thành công');
+  }
 
   @Get()
-  getUsers() {
-    return this.usersService.findAll();
+  async findAll(@Query() filterDto: FilterBooksDto) {
+    const result = await this.booksService.findAll(filterDto);
+    return new PaginatedResponseDto(
+      result.data,
+      result.meta.page,
+      result.meta.limit,
+      result.meta.total,
+      'Lấy danh sách sách thành công',
+    );
   }
 
   @Get(':id')
-  getUser(@Param('id') id: string) {
-    const userId = parseInt(id, 10);
-    return this.usersService.findOne(userId);
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    const book = await this.booksService.findOne(id);
+    return new ApiResponseDto(book, 'Lấy thông tin sách thành công');
   }
-}
-```
 
-
-**Giải thích:**
-
-- **Constructor Injection:** Thông qua constructor, NestJS sẽ tự động tạo và cung cấp instance của `UsersService` cho `UsersController`.
-- Điều này giúp controller tập trung vào việc xử lý request và chuyển giao logic nghiệp vụ cho provider.
-
-### b. Lợi Ích Của Dependency Injection
-
-- **Tái Sử Dụng:** Các provider có thể được sử dụng ở nhiều nơi trong ứng dụng mà không cần tạo lại nhiều instance.
-- **Kiểm Thử:** Dễ dàng mock các dependency khi viết unit test.
-- **Tách Biệt Mối Quan Tâm:** Giúp chia nhỏ logic nghiệp vụ và xử lý định tuyến, làm cho mã nguồn dễ bảo trì và mở rộng.
-
-## 5. Injection Scopes (Phạm Vi Tiêm Dependency)
-
-NestJS cho phép cấu hình phạm vi của provider thông qua thuộc tính `scope` trong decorator `@Injectable()` hoặc khi đăng ký provider. Có 3 phạm vi chính:
-
-### a. Default (Singleton)
-
-- **Singleton:** Mặc định, provider được tạo ra một lần duy nhất và được chia sẻ cho toàn bộ ứng dụng.  
-- Đây là lựa chọn hiệu quả cho hầu hết các dịch vụ không cần trạng thái riêng biệt cho mỗi request.
-
-**Ví dụ:**
-
-```typescript
-@Injectable()
-export class UsersService {
-  // Singleton: một instance duy nhất được sử dụng cho mọi request
-}
-```
-
-### b. Request Scope
-
-- **Request Scope:** Mỗi request HTTP sẽ tạo ra một instance riêng cho provider.  
-- Điều này hữu ích khi provider cần giữ trạng thái riêng biệt cho từng request hoặc khi làm việc với các thông tin liên quan đến request đó.
-
-**Ví dụ:**
-
-```typescript
-import { Injectable, Scope } from '@nestjs/common';
-
-@Injectable({ scope: Scope.REQUEST })
-export class RequestScopedService {
-  // Mỗi request sẽ có instance riêng của RequestScopedService
-}
-```
-
-### c. Transient Scope
-
-- **Transient Scope:** Mỗi lần tiêm provider, một instance mới sẽ được tạo ra.  
-- Transient giúp tránh chia sẻ trạng thái giữa các thành phần, nhưng có thể gây tốn kém tài nguyên nếu không được sử dụng hợp lý.
-
-**Ví dụ:**
-
-```typescript
-import { Injectable, Scope } from '@nestjs/common';
-
-@Injectable({ scope: Scope.TRANSIENT })
-export class TransientService {
-  // Mỗi lần injection sẽ có một instance mới của TransientService
-}
-```
-
-
-## 6. Khái Niệm Cơ Bản Về Module
-
-Trong NestJS, module là đơn vị tổ chức cơ bản của ứng dụng. Mỗi module nhóm các thành phần liên quan như controller, provider, service,… lại với nhau. Nhờ đó, module giúp:
-
-- **Tách biệt mối quan tâm:** Mỗi module đảm nhiệm một phần chức năng cụ thể của ứng dụng.
-- **Quản lý và bảo trì:** Các thành phần được nhóm lại giúp dễ dàng mở rộng, kiểm thử và bảo trì mã nguồn.
-- **Chia sẻ và tái sử dụng:** Module có thể export provider để được sử dụng trong các module khác.
-
-Trong NestJS, **module** là một đơn vị tổ chức quan trọng giúp nhóm các thành phần liên quan lại với nhau. Mỗi module có thể chứa:  
-- **Controllers** (Xử lý HTTP request)  
-- **Providers** (Service, Repository, Factory, Helpers...)  
-- **Exports** (Các thành phần có thể chia sẻ với module khác)  
-- **Imports** (Tích hợp các module khác vào)  
-
-Nhờ cơ chế module hóa, ứng dụng NestJS dễ mở rộng, bảo trì và tái sử dụng.  
-
----
-
-### **6.1. Cách Định Nghĩa Một Module**  
-
-Mỗi module trong NestJS được định nghĩa bằng decorator `@Module()`. Decorator này nhận một đối tượng chứa các metadata mô tả module.  
-
-**Ví dụ: Định nghĩa một module `UsersModule`**  
-
-```typescript
-import { Module } from '@nestjs/common';
-import { UsersController } from './users.controller';
-import { UsersService } from './users.service';
-
-@Module({
-  controllers: [UsersController], // Controller xử lý request
-  providers: [UsersService],      // Service cung cấp logic nghiệp vụ
-})
-export class UsersModule {}
-```
-
-Ở đây:  
-- **`controllers`**: Chứa danh sách controller của module.  
-- **`providers`**: Danh sách các service hoặc provider được quản lý bởi module.  
-
----
-
-### **6.2. Feature Modules**  
-
-Trong NestJS, thay vì đặt tất cả logic vào `AppModule`, ta chia ứng dụng thành nhiều **feature modules** (module chức năng) để dễ tổ chức và quản lý.  
-
-**Ví dụ: Tách biệt module cho User và Post**  
-
-```
-/src
- ├── users
- │   ├── dto
- │   │     ├── create-user.dto.ts
- │   ├── interfaces
- │   │     ├── user.interfaces.ts 
- │   ├── users.module.ts
- │   ├── users.controller.ts
- │   ├── users.service.ts
- │
- ├── posts
- │   ├── dto
- │   │     ├── create-post.dto.ts
- │   ├── interfaces
- │   │     ├── post.interfaces.ts
- │   ├── posts.module.ts
- │   ├── posts.controller.ts
- │   ├── posts.service.ts
- │
- ├── app.module.ts
- ├── main.ts
-```
-
-Sau đó, ta **import các feature module vào AppModule**:
-
-```typescript
-import { Module } from '@nestjs/common';
-import { UsersModule } from './users/users.module';
-import { PostsModule } from './posts/posts.module';
-
-@Module({
-  imports: [UsersModule, PostsModule], // Nhúng các module chức năng vào
-})
-export class AppModule {}
-```
-
-Ưu điểm:  
-✔️ **Mã nguồn có tổ chức rõ ràng**  
-✔️ **Dễ mở rộng, bảo trì**  
-✔️ **Tăng khả năng tái sử dụng**  \
-
----
-
-✅ **Câu lệnh tạo resource nhanh cho REST API + CRUD**
-
-```bash
-nest g res modules/users --no-interactive --type rest --crud
-```
-
-🧠 Giải thích:
-`--no-interactive`: tắt chế độ hỏi
-`--type rest`: chọn transport là REST API
-`--crud`: tạo sẵn controller, service với các endpoint CRUD
-
-⚠️ **Cờ `--crud` chỉ áp dụng nếu `@nestjs/cli` phiên bản >= 9.0**
-
-Với lệnh trên, bạn sẽ có:
-
-```
-src/
-└── modules/
-    └── users/
-        ├── dto/
-        │   ├── create-user.dto.ts
-        │   └── update-user.dto.ts
-        ├── entities/
-        │   └── user.entity.ts
-        ├── users.controller.ts
-        ├── users.module.ts
-        └── users.service.ts
-```
----
-
-### **6.3. Shared Modules**  
-
-Khi một module chứa service cần được sử dụng bởi nhiều module khác, ta cần định nghĩa **shared module**.  
-
-**Ví dụ: `DatabaseModule` dùng chung**  
-
-```typescript
-import { Module } from '@nestjs/common';
-
-@Module({
-  providers: [
-    {
-      provide: 'DATABASE_CONNECTION',
-      useValue: 'MySQL Connection',
-    },
-  ],
-  exports: ['DATABASE_CONNECTION'], // Cho phép module khác sử dụng
-})
-export class DatabaseModule {}
-```
-
-Bây giờ, module khác có thể sử dụng nó bằng cách **import vào module của mình**:  
-
-```typescript
-import { Module } from '@nestjs/common';
-import { DatabaseModule } from '../database/database.module';
-
-@Module({
-  imports: [DatabaseModule],
-})
-export class UsersModule {}
-```
-
-⚠ **Lưu ý:** Nếu không **export** provider thì module khác sẽ không thể sử dụng nó.  
-
----
-
-### **6.4. Module Re-exporting**  
-
-Thay vì bắt buộc phải import nhiều module, ta có thể tái xuất (re-export) module bằng cách export luôn các module con.  
-
-**Ví dụ: `CoreModule` re-export `DatabaseModule` và `LoggerModule`**  
-
-```typescript
-import { Module } from '@nestjs/common';
-import { DatabaseModule } from '../database/database.module';
-import { LoggerModule } from '../logger/logger.module';
-
-@Module({
-  imports: [DatabaseModule, LoggerModule],
-  exports: [DatabaseModule, LoggerModule], // Re-export module con
-})
-export class CoreModule {}
-```
-
-Giờ đây, các module khác chỉ cần **import `CoreModule`** là có thể sử dụng cả `DatabaseModule` và `LoggerModule` mà không cần import riêng lẻ.
-
-```typescript
-import { Module } from '@nestjs/common';
-import { CoreModule } from '../core/core.module';
-
-@Module({
-  imports: [CoreModule],
-})
-export class AppModule {}
-```
-
-💡 **Lợi ích của Module Re-exporting**  
-✔️ Giúp quản lý import dễ dàng hơn  
-✔️ Giảm số lượng module cần import  
-
----
-
-### **6.5. Dependency Injection (DI) Giữa Các Module**  
-
-NestJS sử dụng cơ chế **Dependency Injection (DI)** để chia sẻ dữ liệu và logic giữa các module. Khi một module cần dùng một service từ module khác, nó cần **import module đó** và service cần được **export**.  
-
-**Ví dụ: UsersService cần `DatabaseService` từ DatabaseModule**  
-
-1️⃣ **DatabaseModule export `DatabaseService`**  
-
-```typescript
-import { Module } from '@nestjs/common';
-import { DatabaseService } from './database.service';
-
-@Module({
-  providers: [DatabaseService],
-  exports: [DatabaseService], // Export service để module khác dùng
-})
-export class DatabaseModule {}
-```
-
-2️⃣ **UsersModule import `DatabaseModule` và sử dụng `DatabaseService`**  
-
-```typescript
-import { Module } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { DatabaseModule } from '../database/database.module';
-
-@Module({
-  imports: [DatabaseModule], // Import để có thể sử dụng DatabaseService
-  providers: [UsersService],
-})
-export class UsersModule {}
-```
-
-3️⃣ **Inject `DatabaseService` vào `UsersService`**  
-
-```typescript
-import { Injectable } from '@nestjs/common';
-import { DatabaseService } from '../database/database.service';
-
-@Injectable()
-export class UsersService {
-  constructor(private databaseService: DatabaseService) {}
-
-  findAllUsers() {
-    return this.databaseService.query('SELECT * FROM users');
+  @Put(':id')
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateBookDto: UpdateBookDto,
+  ) {
+    const book = await this.booksService.update(id, updateBookDto);
+    return new ApiResponseDto(book, 'Cập nhật sách thành công');
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    await this.booksService.remove(id);
   }
 }
 ```
 
 ---
 
-### **6.6. Global Modules**  
+## 6. DTO Response vs Entity
 
-Để tránh phải import một module trong tất cả các module khác, NestJS cung cấp decorator `@Global()` giúp biến một module thành **module toàn cục (Global Module)**.  
+### 6.1. Sự khác biệt giữa DTO Response và Entity
 
-**Ví dụ: Tạo một `ConfigModule` làm Global Module**  
+**Entity:**
+- Đại diện cho database table
+- Chứa tất cả columns, including sensitive data
+- Có decorators của TypeORM
+- Map trực tiếp với database schema
+
+**DTO Response:**
+- Đại diện cho data được trả về client
+- Chỉ chứa data cần thiết
+- Không có decorators của TypeORM
+- Có thể chứa computed fields
+
+**Ví dụ so sánh:**
 
 ```typescript
-import { Module, Global } from '@nestjs/common';
+// Entity - Tất cả fields trong database
+@Entity()
+export class Book {
+  @PrimaryGeneratedColumn()
+  id: number;
 
-@Global()
-@Module({
-  providers: [
-    {
-      provide: 'CONFIG',
-      useValue: { appName: 'NestJS App', port: 3000 },
-    },
-  ],
-  exports: ['CONFIG'],
-})
-export class ConfigModule {}
+  @Column()
+  title: string;
+
+  @Column()
+  description: string;
+
+  @Column()
+  pages: number;
+
+  @Column()
+  internalNotes: string; // Field nội bộ, không nên trả về client
+
+  @Column()
+  cost: number; // Giá vốn, sensitive
+
+  @Column()
+  price: number; // Giá bán
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @Column({ nullable: true })
+  deletedAt: Date; // Soft delete
+}
+
+// DTO Response - Chỉ data cần thiết cho client
+export class BookResponseDto {
+  id: number;
+  title: string;
+  description: string;
+  pages: number;
+  price: number; // Không có cost
+  createdAt: Date;
+  // Không có internalNotes, updatedAt, deletedAt
+
+  // Computed field
+  summary: string;
+}
 ```
 
-📌 **Lợi ích của Global Module**  
-✔️ Không cần phải import trong mỗi module khác  
-✔️ Tiện lợi cho các module dùng chung như Config, Logger, Database  
+### 6.2. Tại sao không nên trả về Entity trực tiếp từ Controller
 
-
-### 6.7. Dynamic Modules
-
-Dynamic Modules cho phép bạn tạo ra các module có thể cấu hình được tại thời điểm import, tùy thuộc vào các tham số hoặc điều kiện cụ thể. Điều này hữu ích khi cần chia sẻ cấu hình hoặc logic khởi tạo giữa các module mà không cần phải tạo nhiều phiên bản module tĩnh.
-
-**Ví dụ về Dynamic Module:**
+**1. Security - Lộ sensitive data:**
 
 ```typescript
-import { Module, DynamicModule } from '@nestjs/common';
+// ❌ SAI - Trả về Entity
+@Get(':id')
+async findOne(@Param('id') id: number) {
+  return await this.booksService.findOne(id);
+}
 
-@Module({})
-export class DatabaseModule {
-  static forRoot(options: { host: string; port: number }): DynamicModule {
+// Response:
+{
+  "id": 1,
+  "title": "Clean Code",
+  "price": 250000,
+  "cost": 150000,           // ❌ Lộ giá vốn
+  "internalNotes": "...",   // ❌ Lộ notes nội bộ
+  "deletedAt": null
+}
+
+// ✅ ĐÚNG - Trả về DTO
+@Get(':id')
+async findOne(@Param('id') id: number) {
+  const book = await this.booksService.findOne(id);
+  return new BookResponseDto(book);
+}
+
+// Response:
+{
+  "id": 1,
+  "title": "Clean Code",
+  "price": 250000,
+  "summary": "Clean Code - 464 trang"
+}
+```
+
+**2. Over-fetching - Trả về data không cần thiết:**
+
+```typescript
+// Entity có nhiều fields
+@Entity()
+export class Book {
+  // ... 20+ columns
+  @Column('text')
+  longDescription: string; // 10,000 characters
+
+  @Column('json')
+  metadata: object; // Large object
+}
+
+// Client chỉ cần title và id
+// Nhưng Entity trả về tất cả -> Waste bandwidth
+```
+
+**3. Coupling - Gắn chặt API với Database:**
+
+```typescript
+// Nếu thay đổi database schema
+@Entity()
+export class Book {
+  @Column()
+  book_title: string; // Đổi từ 'title' sang 'book_title'
+}
+
+// API response cũng thay đổi -> Breaking change cho clients
+// Với DTO, có thể map lại mà không ảnh hưởng API
+```
+
+**4. Lack of flexibility - Không linh hoạt:**
+
+```typescript
+// Muốn thêm computed field
+// Entity không thể có business logic phức tạp
+// DTO có thể:
+
+export class BookResponseDto {
+  id: number;
+  title: string;
+  price: number;
+
+  // Computed fields
+  priceFormatted: string; // "250,000 VNĐ"
+  isNew: boolean;         // createdAt < 30 days
+  rating: number;         // Tính từ reviews
+  summary: string;        // title + pages
+}
+```
+
+**5. Version Control - Khó maintain versions:**
+
+```typescript
+// API v1 cần format này
+// API v2 cần format khác
+// Với Entity: Khó quản lý
+// Với DTO: Dễ dàng
+
+export class BookResponseDtoV1 {
+  id: number;
+  title: string;
+}
+
+export class BookResponseDtoV2 {
+  id: number;
+  title: string;
+  description: string;
+  author: AuthorDto; // Thêm relation
+}
+```
+
+### 6.3. Giải pháp với DTO Response
+
+Ví dụ về DTO Response cho Book:
+
+```typescript
+// src/books/dto/book-response.dto.ts
+export class BookResponseDto {
+  id: number;
+  title: string;
+  description: string;
+  pages: number;
+  genres: string[];
+  isbn?: string;
+  publishedYear?: number;
+  createdAt: Date;
+
+  // Computed fields
+  summary: string; // title + pages
+  isNew: boolean;  // createdAt < 30 days
+}
+```
+
+Sử dụng DTO trong Controller:
+
+```typescript
+// src/books/books.controller.ts
+import { BookResponseDto } from './dto/book-response.dto';
+@Get(':id')
+
+@Controller('books')
+export class BooksController {
+  constructor(private readonly booksService: BooksService) {}
+
+  @Get(':id')
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    const book = await this.booksService.findOne(id);
+    
+    // Map Entity to DTO
+    const bookDto = new BookResponseDto();
+    bookDto.id = book.id;
+    bookDto.title = book.title;
+    bookDto.description = book.description;
+    bookDto.pages = book.pages;
+    bookDto.genres = book.genres;
+    bookDto.isbn = book.isbn;
+    bookDto.publishedYear = book.publishedYear;
+    bookDto.createdAt = book.createdAt;
+
+    // Custom bổ sung thêm các fileds khác
+    bookDto.summary = `${book.title} - ${book.pages} trang`;
+    bookDto.isNew = this.isBookNew(book.createdAt);
+
+    return new ApiResponseDto(bookDto, 'Lấy thông tin sách thành công');
+  }
+
+  //Các route khác...
+}
+
+```
+
+Ngoài cách trên, bạn có thể sử dụng `Data Mapper Pattern` như phần sau để tách biệt logic mapping giữa Entity và DTO.
+
+---
+
+## 7. Data Mapper Pattern
+
+### 7.1. Giới thiệu Data Mapper Pattern
+
+**Data Mapper Pattern** là một pattern tách biệt:
+- **Domain logic** (business logic) 
+- **Database logic** (persistence logic)
+
+**Trong context NestJS + TypeORM:**
+- **Entity** = Database representation
+- **Domain Model / DTO** = Business representation
+- **Mapper** = Convert giữa Entity và DTO
+
+**Ví dụ:**
+
+```
+Database (Entity)  ←→  Mapper  ←→  Business Logic (DTO)
+     Book Entity          BookMapper      BookResponseDto
+```
+
+### 7.2. Lợi ích của việc sử dụng Data Mapper Pattern
+
+**1. Separation of Concerns:**
+```typescript
+// Entity - Chỉ lo database
+@Entity()
+export class Book {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  title: string;
+}
+
+// DTO - Chỉ lo business logic
+export class BookResponseDto {
+  id: number;
+  title: string;
+  titleUppercase: string; // Computed
+}
+
+// Mapper - Convert giữa 2 thứ
+export class BookMapper {
+  static toResponseDto(entity: Book): BookResponseDto {
     return {
-      module: DatabaseModule,
-      providers: [
-        {
-          provide: 'DATABASE_OPTIONS',
-          useValue: options,
-        },
-        // Có thể thêm các provider khác dựa trên options
-      ],
-      exports: ['DATABASE_OPTIONS'],
+      id: entity.id,
+      title: entity.title,
+      titleUppercase: entity.title.toUpperCase(),
     };
   }
 }
 ```
 
-Khi sử dụng, bạn có thể cấu hình module như sau:
-
+**2. Flexibility:**
 ```typescript
-import { Module } from '@nestjs/common';
-import { DatabaseModule } from './database.module';
+// Dễ dàng thay đổi response format mà không động đến Entity
+export class BookMapper {
+  static toResponseDto(entity: Book, includeDetails: boolean): BookResponseDto {
+    const dto = {
+      id: entity.id,
+      title: entity.title,
+    };
 
-@Module({
-  imports: [
-    DatabaseModule.forRoot({ host: 'localhost', port: 3306 }),
-  ],
-})
-export class AppModule {}
-```
+    if (includeDetails) {
+      dto.description = entity.description;
+      dto.pages = entity.pages;
+    }
 
----
-
-### 6.8. Lazy Loading Modules
-
-Lazy Loading (tải module lười) cho phép tải module chỉ khi chúng thực sự cần thiết, giúp giảm thời gian khởi động của ứng dụng. Đây là một kỹ thuật quan trọng trong việc tối ưu hóa hiệu suất, đặc biệt là trong các ứng dụng có số lượng module lớn.
-
-- **Cách hoạt động:** Module sẽ không được khởi tạo cho đến khi một thành phần nào đó thực sự cần đến chúng.  
-- **Ưu điểm:** Giảm tải ban đầu và cải thiện tốc độ khởi động của ứng dụng.
-
-NestJS hỗ trợ lazy loading thông qua cơ chế import module trong các module khác theo cách truyền thống, và các module được tạo ra thông qua Dynamic Modules cũng có thể hỗ trợ lazy loading nếu được cấu hình đúng.
-
----
-
-### 6.9. ModuleRef
-
-ModuleRef là một lớp cung cấp các phương thức để truy xuất các provider đã đăng ký trong module một cách động tại runtime. Nó rất hữu ích trong các tình huống:
-- Khi cần lấy một provider mà không thể tiêm trực tiếp qua constructor.
-- Khi xử lý các dependency phức tạp hoặc xử lý tình huống circular dependency.
-
-**Ví dụ sử dụng ModuleRef:**
-
-```typescript
-import { Injectable, ModuleRef } from '@nestjs/common';
-
-@Injectable()
-export class SomeService {
-  constructor(private moduleRef: ModuleRef) {}
-
-  async getOtherService() {
-    const otherService = await this.moduleRef.resolve('OtherService');
-    return otherService.doSomething();
+    return dto;
   }
 }
 ```
 
-Với ModuleRef, bạn có thể "lấy" một provider bất cứ lúc nào, đảm bảo tính linh hoạt trong quản lý dependency.
-
----
-
-### 6.10. Circular Dependency
-
-Circular dependency xảy ra khi hai hay nhiều module hoặc provider phụ thuộc lẫn nhau, dẫn đến vòng lặp không mong muốn trong quá trình khởi tạo. Điều này có thể gây ra lỗi hoặc hành vi không xác định.
-
-**Cách xử lý Circular Dependency trong NestJS:**
-
-- **Forward References:** Sử dụng hàm `forwardRef()` để khai báo dependency khi có vòng lặp giữa các module hoặc provider.
-
-**Ví dụ xử lý circular dependency giữa hai service:**
-
+**3. Testability:**
 ```typescript
-// user.service.ts
-import { Injectable, forwardRef, Inject } from '@nestjs/common';
-import { PostsService } from './posts.service';
+// Dễ test Mapper riêng biệt
+describe('BookMapper', () => {
+  it('should map entity to dto', () => {
+    const entity = new Book();
+    entity.id = 1;
+    entity.title = 'Clean Code';
 
-@Injectable()
-export class UsersService {
-  constructor(
-    @Inject(forwardRef(() => PostsService))
-    private postsService: PostsService,
-  ) {}
-}
+    const dto = BookMapper.toResponseDto(entity);
 
-// posts.service.ts
-import { Injectable, forwardRef, Inject } from '@nestjs/common';
-import { UsersService } from './users.service';
+    expect(dto.id).toBe(1);
+    expect(dto.titleUppercase).toBe('CLEAN CODE');
+  });
+});
+```
 
-@Injectable()
-export class PostsService {
-  constructor(
-    @Inject(forwardRef(() => UsersService))
-    private usersService: UsersService,
-  ) {}
+**4. Reusability:**
+```typescript
+// Một Entity có thể map thành nhiều DTOs
+export class BookMapper {
+  static toResponseDto(entity: Book): BookResponseDto { }
+  static toListItemDto(entity: Book): BookListItemDto { }
+  static toDetailDto(entity: Book): BookDetailDto { }
+  static toAdminDto(entity: Book): BookAdminDto { }
 }
 ```
 
-- **Tách Biệt Mối Quan Tâm:** Cố gắng phân chia lại logic nếu có thể, giảm sự phụ thuộc trực tiếp giữa các module hay provider.
+### 7.3. Cách triển khai Data Mapper Pattern với NestJS
 
+**Bước 1: Tạo Response DTOs:**
 
-## 7. Tổng Kết
+```typescript
+// src/books/dto/book-response.dto.ts
+/**
+ * Mục đích: Định nghĩa cấu trúc dữ liệu trả về cho client
+ * cho Book chi tiết
+ */
+export class BookResponseDto {
+  id: number;
+  title: string;
+  description: string;
+  pages: number;
+  genres: string[];
+  isbn?: string;
+  publishedYear?: number;
+  createdAt: Date;
+  
+  // Computed fields
+  summary: string;
+  isNew: boolean;
+}
 
-- **Provider** là thành phần cung cấp dịch vụ, logic nghiệp vụ cho ứng dụng và được đánh dấu bằng `@Injectable()`.
-- **Đăng ký Provider:** Được thực hiện thông qua thuộc tính `providers` trong decorator `@Module()`, giúp NestJS quản lý và cung cấp instance cho các lớp khác.
-- **Dependency Injection:** Giúp tự động "tiêm" các instance của provider vào controller, service hoặc các thành phần khác thông qua constructor, làm cho mã nguồn dễ bảo trì, mở rộng và kiểm thử.
+// src/books/dto/book-list-item.dto.ts
+/** 
+ * Mục đích: Định nghĩa cấu trúc dữ liệu cho danh sách Book
+ */
+export class BookListItemDto {
+  id: number;
+  title: string;
+  pages: number;
+  summary: string;
+}
+```
 
-- **Module:** Là đơn vị tổ chức cơ bản trong NestJS, giúp nhóm các thành phần liên quan lại với nhau, quản lý và chia sẻ logic nghiệp vụ.
-- **Dynamic Modules:** Cho phép cấu hình module theo thời điểm chạy, hỗ trợ tùy biến và tái sử dụng.
-- **Lazy Loading Modules:** Tải module khi cần, cải thiện hiệu suất và thời gian khởi động ứng dụng.
-- **ModuleRef:** Cung cấp cách truy xuất provider một cách linh hoạt tại runtime.
-- **Circular Dependency:** Cần được xử lý cẩn thận thông qua forward references và thiết kế lại cấu trúc ứng dụng để tránh vòng lặp phụ thuộc.
+**Bước 2: Tạo Mapper:**
 
-Những cơ chế và kỹ thuật này giúp NestJS trở nên mạnh mẽ, linh hoạt và dễ mở rộng, cho phép bạn xây dựng các ứng dụng quy mô lớn một cách có tổ chức và hiệu quả.
+```typescript
+// src/books/mappers/book.mapper.ts
+import { Book } from '../entities/book.entity';
+import { BookResponseDto } from '../dto/book-response.dto';
+import { BookListItemDto } from '../dto/book-list-item.dto';
+
+export class BookMapper {
+  /**
+   * Map Entity to Response DTO
+   */
+  static toResponseDto(entity: Book): BookResponseDto {
+    const dto = new BookResponseDto();
+    
+    dto.id = entity.id;
+    dto.title = entity.title;
+    dto.description = entity.description;
+    dto.pages = entity.pages;
+    dto.genres = entity.genres;
+    dto.isbn = entity.isbn;
+    dto.publishedYear = entity.publishedYear;
+    dto.createdAt = entity.createdAt;
+    
+    // Computed fields
+    dto.summary = `${entity.title} - ${entity.pages} trang`;
+    dto.isNew = this.isBookNew(entity.createdAt);
+    
+    return dto;
+  }
+
+  /**
+   * Map Entity to List Item DTO
+   */
+  static toListItemDto(entity: Book): BookListItemDto {
+    return {
+      id: entity.id,
+      title: entity.title,
+      pages: entity.pages,
+      summary: `${entity.title} - ${entity.pages} trang`,
+    };
+  }
+
+  /**
+   * Map array of Entities to array of DTOs
+   */
+  static toResponseDtoList(entities: Book[]): BookResponseDto[] {
+    return entities.map(entity => this.toResponseDto(entity));
+  }
+
+  static toListItemDtoList(entities: Book[]): BookListItemDto[] {
+    return entities.map(entity => this.toListItemDto(entity));
+  }
+
+  /**
+   * Private helper methods
+   */
+  private static isBookNew(createdAt: Date): boolean {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return createdAt > thirtyDaysAgo;
+  }
+}
+```
+
+**Bước 3: Sử dụng Mapper trong Service:**
+
+```typescript
+// src/books/books.service.ts
+import { BookMapper } from './mappers/book.mapper';
+
+@Injectable()
+export class BooksService {
+  constructor(
+    @InjectRepository(Book)
+    private readonly bookRepository: Repository<Book>,
+  ) {}
+
+  // async findAll(filterDto: FilterBooksDto) {
+  //   const { page = 1, limit = 10 } = filterDto;
+
+  //   const [entities, total] = await this.bookRepository.findAndCount({
+  //     skip: (page - 1) * limit,
+  //     take: limit,
+  //     order: { createdAt: 'DESC' },
+  //   });
+
+  //   // Map entities to DTOs
+  //   const books = BookMapper.toListItemDtoList(entities);
+
+  //   return {
+  //     data: books,
+  //     meta: {
+  //       page,
+  //       limit,
+  //       total,
+  //       totalPages: Math.ceil(total / limit),
+  //     },
+  //   };
+  // }
+
+  //simple version
+  async findAll() {
+    const entities = await this.bookRepository.find({
+      order: { createdAt: 'DESC' },
+    });
+    // Map entities to DTOs
+    const books = BookMapper.toListItemDtoList(entities);
+
+    return books;
+  }
+
+  async findOne(id: number): Promise<BookResponseDto> {
+    const entity = await this.bookRepository.findOne({
+      where: { id },
+    });
+
+    if (!entity) {
+      throw new NotFoundException(`Không tìm thấy sách với ID ${id}`);
+    }
+
+    // Map entity to DTO
+    return BookMapper.toResponseDto(entity);
+  }
+
+  async create(createBookDto: CreateBookDto): Promise<BookResponseDto> {
+    const entity = this.bookRepository.create(createBookDto);
+    const savedEntity = await this.bookRepository.save(entity);
+    
+    // Map saved entity to DTO
+    return BookMapper.toResponseDto(savedEntity);
+  }
+
+  async update(id: number, updateBookDto: UpdateBookDto): Promise<BookResponseDto> {
+    const entity = await this.bookRepository.findOne({ where: { id } });
+
+    if (!entity) {
+      throw new NotFoundException(`Không tìm thấy sách với ID ${id}`);
+    }
+
+    Object.assign(entity, updateBookDto);
+    const updatedEntity = await this.bookRepository.save(entity);
+    
+    // Map updated entity to DTO
+    return BookMapper.toResponseDto(updatedEntity);
+  }
+}
+```
+
+**Bước 4: Controller trả về DTOs:**
+
+```typescript
+// src/books/books.controller.ts
+@Controller('books')
+export class BooksController {
+  constructor(private readonly booksService: BooksService) {}
+
+  @Get()
+  async findAll(@Query() filterDto: FilterBooksDto) {
+    // Service đã return DTOs
+    return await this.booksService.findAll(filterDto);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    // Service đã return DTO
+    return await this.booksService.findOne(id);
+  }
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  async create(@Body() createBookDto: CreateBookDto) {
+    // Service đã return DTO
+    return await this.booksService.create(createBookDto);
+  }
+}
+```
+
+### 7.4. Ví dụ minh họa sử dụng Data Mapper Pattern
+
+**Advanced Mapper với Relations:**
+
+```typescript
+// Giả sử Book có relation với Author
+@Entity()
+export class Book {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  title: string;
+
+  @ManyToOne(() => Author)
+  author: Author;
+
+  @OneToMany(() => Review, review => review.book)
+  reviews: Review[];
+}
+
+// Response DTO với nested data
+export class BookDetailDto {
+  id: number;
+  title: string;
+  author: {
+    id: number;
+    name: string;
+  };
+  averageRating: number;
+  totalReviews: number;
+}
+
+// Mapper xử lý relations
+export class BookMapper {
+  static toDetailDto(entity: Book): BookDetailDto {
+    return {
+      id: entity.id,
+      title: entity.title,
+      author: entity.author ? {
+        id: entity.author.id,
+        name: entity.author.name,
+      } : null,
+      averageRating: this.calculateAverageRating(entity.reviews),
+      totalReviews: entity.reviews?.length || 0,
+    };
+  }
+
+  private static calculateAverageRating(reviews: Review[]): number {
+    if (!reviews || reviews.length === 0) return 0;
+    
+    const total = reviews.reduce((sum, review) => sum + review.rating, 0);
+    return Math.round((total / reviews.length) * 10) / 10;
+  }
+}
+```
+
+**Mapper với conditional logic:**
+
+```typescript
+export class BookMapper {
+  /**
+   * Map với options khác nhau cho different user roles
+   */
+  static toDto(
+    entity: Book,
+    options: {
+      includeAuthor?: boolean;
+      includeReviews?: boolean;
+      includeSensitiveData?: boolean;
+    } = {}
+  ) {
+    const dto: any = {
+      id: entity.id,
+      title: entity.title,
+      description: entity.description,
+    };
+
+    if (options.includeAuthor && entity.author) {
+      dto.author = {
+        id: entity.author.id,
+        name: entity.author.name,
+      };
+    }
+
+    if (options.includeReviews && entity.reviews) {
+      dto.reviews = entity.reviews.map(r => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+      }));
+    }
+
+    if (options.includeSensitiveData) {
+      dto.cost = entity.cost;
+      dto.internalNotes = entity.internalNotes;
+    }
+
+    return dto;
+  }
+}
+
+// Sử dụng
+// For regular users
+const userDto = BookMapper.toDto(book, { includeAuthor: true });
+
+// For admin
+const adminDto = BookMapper.toDto(book, { 
+  includeAuthor: true,
+  includeReviews: true,
+  includeSensitiveData: true
+});
+```
+
+---
+
+## 8. Cấu hình multi database connection
+
+Xem hướng dẫn chi tiết tại: [NestJS Multi Database Connections](./multi-database.md)
+
+---
+
+## 9. Best Practices
+
+### 9.1. Entity Design
+
+✅ **DO:**
+```typescript
+@Entity('books')
+export class Book {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ length: 255 })
+  title: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @Index() // Index cho queries thường xuyên
+  @Column()
+  isbn: string;
+}
+```
+
+❌ **DON'T:**
+```typescript
+@Entity()
+export class book { // Lowercase class name
+  @Column() // Không specify type, length
+  title;
+
+  // Không có timestamps
+}
+```
+
+### 9.2. Repository Usage
+
+✅ **DO:**
+```typescript
+// Sử dụng transactions cho multiple operations
+async createBookWithAuthor(data: any) {
+  const queryRunner = this.dataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
+  try {
+    const author = await queryRunner.manager.save(Author, data.author);
+    const book = await queryRunner.manager.save(Book, {
+      ...data.book,
+      authorId: author.id
+    });
+
+    await queryRunner.commitTransaction();
+    return book;
+  } catch (err) {
+    await queryRunner.rollbackTransaction();
+    throw err;
+  } finally {
+    await queryRunner.release();
+  }
+}
+```
+
+❌ **DON'T:**
+```typescript
+// Không dùng transaction cho related operations
+async createBookWithAuthor(data: any) {
+  const author = await this.authorRepository.save(data.author);
+  const book = await this.bookRepository.save({
+    ...data.book,
+    authorId: author.id
+  });
+  // Nếu save book fail, author đã được tạo -> Inconsistent data
+  return book;
+}
+```
+
+### 9.3. Performance Tips
+
+**1. Sử dụng select cụ thể:**
+```typescript
+// ✅ Chỉ lấy fields cần thiết
+const books = await this.bookRepository.find({
+  select: ['id', 'title', 'pages'],
+});
+
+// ❌ Lấy tất cả fields
+const books = await this.bookRepository.find();
+```
+
+**2. Eager loading cho relations:**
+```typescript
+// ✅ Load relation trong 1 query
+const books = await this.bookRepository.find({
+  relations: ['author'],
+});
+
+// ❌ N+1 query problem
+const books = await this.bookRepository.find();
+for (const book of books) {
+  book.author = await this.authorRepository.findOne(book.authorId);
+}
+```
+
+**3. Pagination:**
+```typescript
+// ✅ Always paginate
+const [books, total] = await this.bookRepository.findAndCount({
+  skip: (page - 1) * limit,
+  take: limit,
+});
+
+// ❌ Load tất cả
+const books = await this.bookRepository.find();
+```
+
+### 9.4. Security
+
+**1. Không expose sensitive fields:**
+```typescript
+// ✅ Sử dụng DTO Response
+return BookMapper.toResponseDto(book);
+
+// ❌ Trả về Entity trực tiếp
+return book; // Có thể lộ sensitive data
+```
+
+**2. Validate input:**
+```typescript
+// ✅ Sử dụng DTO với validation
+async create(@Body() createBookDto: CreateBookDto) {
+  return await this.booksService.create(createBookDto);
+}
+
+// ❌ Không validate
+async create(@Body() data: any) {
+  return await this.bookRepository.save(data);
+}
+```

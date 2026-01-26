@@ -1,241 +1,619 @@
-# Cơ bản về TypeScript
+# Lesson 02 – Tìm hiểu về NestJS 
 
-## **Giới thiệu về TypeScript**
+> **Mục tiêu buổi học**
+> Sau bài này, người học sẽ:
+>
+> * Hiểu **NestJS là gì và vì sao nên dùng**
+> * Nắm được **kiến trúc cốt lõi của NestJS**
+> * Tự **cài đặt môi trường và tạo project NestJS đầu tiên**
+> * Hiểu rõ **cấu trúc project NestJS**
+> * Biết cách **quản lý biến môi trường (Config & Environment)** đúng chuẩn backend
+> * Biết cách **chuẩn định dạng hóa mã nguồn** với Prettier & ESLint hoặc Biome
+---
 
-TypeScript là một ngôn ngữ lập trình mã nguồn mở, được phát triển và duy trì bởi Microsoft. Nó là một superset của JavaScript, nghĩa là bất kỳ mã JavaScript hợp lệ nào cũng là TypeScript hợp lệ. Tuy nhiên, TypeScript cung cấp các tính năng mạnh mẽ hơn như kiểu dữ liệu tĩnh, lập trình hướng đối tượng, giao diện (interface), generics và nhiều hơn nữa.
+## 1. NestJS là gì?
 
-Mục đích chính của TypeScript là giúp phát triển các ứng dụng lớn và phức tạp hiệu quả hơn bằng cách cung cấp các công cụ để kiểm tra và phát hiện lỗi trong giai đoạn biên dịch, thay vì chỉ được phát hiện trong thời gian chạy như JavaScript truyền thống. Điều này giúp tăng năng suất và dễ dàng bảo trì mã nguồn hơn.
+### 1.1 NestJS giải quyết vấn đề gì?
 
-##  **Cài đặt và Cấu hình**
+Trước khi có NestJS, đa số backend Node.js được xây dựng bằng **Express** hoặc **Fastify**.
 
-Để bắt đầu với TypeScript, bạn cần cài đặt Node.js và TypeScript Compiler (tsc). Bạn có thể cài đặt TypeScript toàn cầu trên máy hoặc cài đặt như một dependency trong dự án của bạn.
+Vấn đề thường gặp:
+
+* Code **khó mở rộng** khi dự án lớn
+* Logic bị trộn lẫn (route – business – database)
+* Không có chuẩn kiến trúc rõ ràng
+* Khó test, khó bảo trì
+
+👉 **NestJS ra đời để giải quyết các vấn đề**:
+
+* NestJS giúp quản lý các ứng dụng quy mô lớn vốn thường gặp khó khăn nếu thiếu cấu trúc mã nguồn chặt chẽ. 
+* Nó giải quyết sự thiếu nhất quán trong các dự án bằng cách áp dụng các mẫu thiết kế như SOLID và Dependency Injection. Framework này giúp tránh tình trạng "tê liệt quyết định" (decision paralysis) bằng cách cung cấp một kiến trúc mô-đun chuẩn hóa ngay từ đầu. 
+* Nhờ cấu trúc này, tính toàn vẹn của kiến trúc được duy trì theo thời gian, giúp các nhà phát triển mới dễ dàng hiểu mã nguồn nhanh chóng. Ngoài ra, nó tạo ra môi trường phát triển nhất quán, dễ kiểm thử và bảo trì cho các ứng dụng backend phức tạp.
+
+---
+
+### 1.2 NestJS là gì?
+
+NestJS là một framework mã nguồn mở tiến bộ dành cho Node.js, được thiết kế để xây dựng các ứng dụng phía máy chủ (server-side) hiệu quả, đáng tin cậy và có khả năng mở rộng cao. Framework này được viết bằng TypeScript nhưng vẫn hỗ trợ hoàn toàn JavaScript thuần túy, cho phép lập trình viên tận dụng các tính năng mới nhất của ECMAScript và hệ thống kiểu mạnh mẽ.
+
+Dưới đây là những đặc điểm cốt lõi định nghĩa NestJS:
+
+* **Nền tảng và Công nghệ**: NestJS kết hợp các yếu tố của Lập trình hướng đối tượng (OOP), Lập trình chức năng (FP) và Lập trình phản ứng chức năng (FRP). Nó hoạt động như một lớp bao bọc (wrapper) phía trên các thư viện HTTP server mạnh mẽ như Express (mặc định) hoặc Fastify để cung cấp một kiến trúc chuẩn hóa.
+
+* **Kiến trúc lấy cảm hứng từ Angular**: Người sáng lập NestJS đã mượn các mẫu thiết kế từ Angular để mang lên backend, bao gồm việc sử dụng các mô-đun, dịch vụ (services), và hệ thống Dependency Injection (DI) mạnh mẽ. Điều này tạo ra một môi trường phát triển quen thuộc cho các lập trình viên đã biết Angular
+
+NestJS sử dụng:
+
+* **TypeScript**
+* **Express** (mặc định) hoặc **Fastify**
+
+NestJS cung cấp:
+
+* Kiến trúc rõ ràng
+* Dependency Injection (DI)
+* Decorator mạnh mẽ
+* Dễ test, dễ mở rộng
+
+👉 NestJS **không thay thế Express**, mà **xây dựng phía trên Express**.
+
+---
+
+### 1.3 So sánh NestJS vs Express
+
+| Tiêu chí             | Express        | NestJS    |
+| -------------------- | -------------- | --------- |
+| Kiến trúc            | Tự do          | Chuẩn hóa |
+| TypeScript           | Không bắt buộc | Bắt buộc  |
+| Dependency Injection | Không          | Có        |
+| Quy mô dự án         | Nhỏ – vừa      | Vừa – lớn |
+| Dễ bảo trì           | Khó dần        | Dễ        |
+
+👉 **Express phù hợp học nhanh**, NestJS **phù hợp làm dự án thật**.
+
+---
+
+### 1.4 Kiến trúc MVC + Dependency Injection
+
+NestJS kết hợp:
+
+* **MVC (Controller – Service)**
+* **Dependency Injection (DI)**
+
+Ví dụ luồng request:
+
+```
+Client → Controller → Service → Database
+```
+
+Ba trụ cột chính:
+
+1. **Modules**: Là các đơn vị tổ chức cơ bản, đóng vai trò ranh giới logic để nhóm các thành phần liên quan như controller và provider.
+2. **Controllers**: Chịu trách nhiệm tiếp nhận các yêu cầu HTTP đến, xử lý đầu vào và gửi lại phản hồi cho client.
+3. **Providers (Services)**: Nơi chứa các logic nghiệp vụ (business logic) hoặc tương tác cơ sở dữ liệu, có thể được "tiêm" vào các controller thông qua hệ thống DI
+
+👉 Đây là kiến trúc chuẩn của backend hiện đại.
+
+---
+
+### 1.5 NestJS được dùng trong dự án nào?
+
+NestJS rất linh hoạt và phù hợp cho nhiều loại dự án khác nhau, đặc biệt là các hệ thống cần độ tin cậy cao:
+
+*   **API Doanh nghiệp**: Xây dựng các RESTful API và GraphQL endpoint có cấu trúc chặt chẽ, dễ bảo trì cho các hệ thống quy mô lớn.
+*   **Kiến trúc Microservices**: Thiết kế các dịch vụ nhỏ lẻ, độc lập nhờ khả năng hỗ trợ nhiều lớp truyền tải thông điệp khác nhau.
+*   **Ứng dụng thời gian thực**: Phù hợp cho các dự án như ứng dụng chat, bảng điều khiển (dashboard) trực tiếp nhờ hỗ trợ mạnh mẽ cho WebSockets.
+*   **Ứng dụng Streaming**: Xử lý và truyền phát dữ liệu hiệu quả thông qua cơ chế xử lý dữ liệu không đồng bộ.
+*   **Hệ thống hướng sự kiện**: Kết nối tốt với các trình môi giới tin nhắn (message brokers) như RabbitMQ hoặc Kafka.
+
+
+Nhiều công ty dùng NestJS vì:
+
+* Code rõ ràng
+* Dễ onboarding developer mới
+* Dễ test & maintain
+
+---
+
+## 2. Cài đặt môi trường và tạo dự án NestJS
+
+### 2.1 Cài Node.js & npm
+
+Kiểm tra Node.js:
 
 ```bash
-pnpm init
-pnpm i typescript --save-dev
+node -v
+npm -v
 ```
 
-Sau khi cài đặt, bạn có thể khởi tạo một dự án TypeScript mới bằng cách tạo một thư mục và khởi tạo file `tsconfig.json`. Đây là file cấu hình cho TypeScript Compiler, nơi bạn có thể định cấu hình các tùy chọn biên dịch, đường dẫn nguồn, đường dẫn đầu ra và nhiều hơn nữa.
+👉 Khuyến nghị **Node.js >= 18**
+
+---
+
+### 2.2 Cài NestJS CLI
+
+Nest CLI giúp:
+
+* Tạo project nhanh
+* Generate module, controller, service
+
+Cài đặt:
 
 ```bash
-npx tsc --init
+npm install -g @nestjs/cli
 ```
 
-Một file `tsconfig.json` tại ra với thuộc tính mặc định được kích hoạt như sau:
+Kiểm tra:
 
-```json
-  target: es2016
-  module: commonjs
-  strict: true
-  esModuleInterop: true
-  skipLibCheck: true
-  forceConsistentCasingInFileNames: true
+```bash
+nest --version
 ```
-Bạn edit file này và bổ sung thêm như sau
 
-```json
-{
-  "include": ["src"],
-  "compilerOptions": {
-    "outDir": "./build"
+---
+
+### 2.3 Tạo project NestJS đầu tiên
+
+```bash
+nest new nestjs-basic
+```
+
+Chọn:
+
+* Package manager: **npm / pnpm / yarn**
+
+Sau khi xong:
+
+```bash
+cd nestjs-basic
+npm run start:dev
+```
+
+---
+
+### 2.4 Hello World với NestJS
+
+Mở trình duyệt:
+
+```
+http://localhost:3000
+```
+
+Kết quả:
+
+```
+Hello World!
+```
+
+👉 Đây là API đầu tiên của bạn 🎉
+
+---
+
+## 3. Tìm hiểu cấu trúc project NestJS
+
+### 3.1 Cấu trúc thư mục mặc định
+
+```
+src/
+ ├── app.controller.ts
+ ├── app.service.ts
+ ├── app.module.ts
+ └── main.ts
+```
+
+---
+
+### 3.2 main.ts – Entry point
+
+```ts
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  await app.listen(3000);
+}
+bootstrap();
+```
+
+Giải thích:
+
+* `bootstrap()` → hàm khởi động app
+* `NestFactory.create()` → tạo ứng dụng
+* `app.listen()` → mở server
+
+Nếu bạn muốn sử dụng `fastify` thay vì `express`:
+
+```ts
+
+import { NestFactory } from '@nestjs/core';
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from '@nestjs/platform-fastify';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter()
+  );
+  await app.listen(process.env.PORT ?? 3000);
+}
+```
+
+Bạn cần cài thêm package `@nestjs/platform-fastify` và `fastify` để sử dụng Fastify làm nền tảng cho ứng dụng NestJS của mình.
+
+Xem thêm tài liệu chính thức về [Fastify với NestJS](https://docs.nestjs.com/techniques/performance#fastify).
+
+
+---
+
+### 3.3 AppModule – Module gốc
+
+```ts
+@Module({
+  imports: [],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+```
+
+👉 Mọi module khác đều được import vào đây.
+
+---
+
+### 3.4 Core Concepts Overview
+
+**Controller**:
+
+```ts
+@Controller()
+export class AppController {
+  constructor(private readonly appService: AppService) {}
+
+  @Get()
+  getHello(): string {
+    return this.appService.getHello();
   }
 }
 ```
 
-##  **Cấu trúc cơ bản**
+Trong NestJS, Controller đóng vai trò là tầng xử lý các yêu cầu (requests) đến và trả về phản hồi (responses) cho client. Dưới đây là các vai trò cụ thể:
 
-Cấu trúc cơ bản của TypeScript tương tự như JavaScript, bao gồm biến, kiểu dữ liệu, toán tử, câu lệnh điều kiện, vòng lập và hàm.
+*   **Cổng giao tiếp (Gateway):** Controller đóng vai trò là tầng "C" trong mô hình MVC, hoạt động như một điểm tiếp nhận trung gian giữa client và server.
+*   **Điều hướng và trích xuất dữ liệu:** Controller xác định các lộ trình (routes) và trích xuất thông tin từ yêu cầu như body, headers, query parameters hoặc các tham số lộ trình (params).
+*   **Điều phối xử lý:** Sau khi nhận dữ liệu, Controller sẽ chuyển giao các chi tiết yêu cầu cho tầng Service (Provider) để thực hiện logic nghiệp vụ.
+*   **Nguyên tắc "Thin Controller":** Một Controller tốt nên được giữ "mỏng", chỉ tập trung vào việc tiếp nhận và định dạng dữ liệu đầu ra mà không chứa các logic nghiệp vụ hay logic dữ liệu phức tạp.
 
-```typescript
-// Biến và kiểu dữ liệu
-let x: number = 5;
-let y: string = "Hello";
-let z: boolean = true;
-let arr: number[] = [1, 2, 3];
-let obj: { name: string, age: number } = { name: "John", age: 30 };
 
-// Toán tử và câu lệnh điều kiện
-if (x > 3) {
-    console.log("x is greater than 3");
-} else {
-    console.log("x is not greater than 3");
-}
 
-// Vòng lặp
-for (let i = 0; i < arr.length; i++) {
-    console.log(arr[i]);
-}
+**Service**:
 
-// Hàm
-function add(a: number, b: number): number {
-    return a + b;
+```ts
+@Injectable()
+export class AppService {
+  getHello(): string {
+    return 'Hello World!';
+  }
 }
 ```
 
-Chi tiết xem tại: https://www.w3schools.com/typescript/typescript_simple_types.php
+Trong kiến trúc NestJS, **Service** (một dạng Provider) đóng vai trò là xương sống xử lý các tác vụ logic của ứng dụng. Dưới đây là các vai trò chi tiết:
 
-##  **Lập trình hướng đối tượng**
+*   **Đóng gói logic nghiệp vụ (Business Logic):** Service là nơi tập trung thực hiện các quy tắc, tính toán và logic chính của ứng dụng. Thay vì để Controller xử lý các logic phức tạp, Service đảm nhận vai trò này để đảm bảo mã nguồn có cấu trúc chặt chẽ và dễ quản lý.
+*   **Giao tiếp và quản lý dữ liệu:** Service hoạt động như một cầu nối (liaison) giữa Controller và cơ sở dữ liệu. Nó chịu trách nhiệm thực hiện các thao tác CRUD, truy xuất dữ liệu từ database thông qua các Repository hoặc Model và định dạng lại dữ liệu trước khi phản hồi.
+*   **Thực thi nguyên tắc Đơn trách nhiệm (Single Responsibility):** Việc đưa logic vào Service giúp tuân thủ các nguyên tắc thiết kế phần mềm như **SOLID**. Điều này giúp giữ cho Controller luôn "mỏng" (thin controller), chỉ tập trung vào việc tiếp nhận yêu cầu HTTP và trả về phản hồi, trong khi Service tập trung hoàn toàn vào xử lý nghiệp vụ.
+*   **Tận dụng hệ thống Dependency Injection (DI):** Các Service được đánh dấu bằng decorator `@Injectable()`, cho phép chúng được quản lý bởi container Inversion of Control (IoC) của NestJS. Nhờ DI, Service có thể được "tiêm" vào Controller hoặc các Service khác, giúp các thành phần tương tác với nhau một cách lỏng lẻo (loosely coupled).
+*   **Tăng khả năng kiểm thử (Testability):** Do logic được tách biệt khỏi tầng HTTP, các Service rất thuận tiện cho việc viết **Unit Test**. Lập trình viên có thể dễ dàng tạo các bản giả (mock) của Service để kiểm tra các thành phần khác mà không cần phụ thuộc vào cơ sở dữ liệu thực tế.
+*   **Tái sử dụng mã nguồn và tính mô-đun:** Một Service được định nghĩa trong một Module có thể được xuất khẩu (export) để sử dụng lại ở nhiều Module khác nhau trong toàn bộ ứng dụng, giúp giảm thiểu việc lặp lại mã (DRY).
 
-TypeScript hỗ trợ lập trình hướng đối tượng (OOP) thông qua khái niệm lớp (class) và đối tượng (object). Bạn có thể định nghĩa các lớp với thuộc tính và phương thức, kế thừa từ lớp khác, và áp dụng các nguyên tắc OOP như đa hình và trừu tượng.
 
-```typescript
-class Person {
-    name: string;
-    age: number;
+👉 Controller gọi Service thông qua **Dependency Injection**.
 
-    constructor(name: string, age: number) {
-        this.name = name;
-        this.age = age;
-    }
 
-    greet() {
-        console.log(`Hello, my name is ${this.name} and I'm ${this.age} years old.`);
-    }
-}
 
-class Employee extends Person {
-    job: string;
+**Module**:
 
-    constructor(name: string, age: number, job: string) {
-        super(name, age);
-        this.job = job;
-    }
-
-    work() {
-        console.log(`I'm working as a ${this.job}.`);
-    }
-}
-
-let person = new Person("John", 30);
-person.greet(); // Hello, my name is John and I'm 30 years old.
-
-let employee = new Employee("Jane", 25, "Engineer");
-employee.greet(); // Hello, my name is Jane and I'm 25 years old.
-employee.work(); // I'm working as a Engineer.
+```ts
+@Module({
+  imports: [],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
 ```
 
-Xem thêm tại: https://www.w3schools.com/typescript/typescript_classes.php
+Trong NestJS, **Module** đóng vai trò là đơn vị tổ chức cơ bản và là nền tảng để xây dựng cấu trúc ứng dụng. Dưới đây là các vai trò chính của nó:
 
-##  **Interface**
+*   **Nhóm logic theo tính năng:** Module giúp gom nhóm các thành phần liên quan như Controllers, Providers (Services), và các thành phần chức năng khác vào một khối thống nhất (thường là theo từng tính năng như `UsersModule`, `AuthModule`).
+*   **Quản lý Dependency Injection (DI):** Module đóng vai trò là "container" để đăng ký các Provider và giúp hệ thống DI của NestJS phân giải các phụ thuộc giữa các thành phần bên trong.
+*   **Thiết lập ranh giới và đóng gói:** Nó tạo ra các ranh giới logic rõ ràng, giúp cô lập các tính năng để mã nguồn dễ bảo trì, kiểm thử và mở rộng khi dự án lớn dần.
+*   **Tái sử dụng mã nguồn:** Thông qua thuộc tính `exports`, một Module có thể chia sẻ các Provider của mình để các Module khác có thể sử dụng lại, giúp tránh lặp lại mã (DRY).
+*   **Điểm khởi đầu (Root Module):** Mọi ứng dụng NestJS đều có ít nhất một Module gốc (`AppModule`), đóng vai trò là điểm bắt đầu để khởi tạo cây phụ thuộc của toàn bộ ứng dụng.
 
-Interfaces trong TypeScript được sử dụng để định nghĩa cấu trúc của một đối tượng. Chúng giúp đảm bảo rằng các đối tượng tuân thủ một cấu trúc nhất định và cung cấp hệ thống kiểu dữ liệu mạnh mẽ cho TypeScript.
+---
 
-```typescript
-interface Person {
-    name: string;
-    age: number;
-    greet(): void;
-}
+## 4. Config & Environment (Cấu hình ứng dụng)
 
-let person: Person = {
-    name: "John",
-    age: 30,
-    greet() {
-        console.log(`Hello, my name is ${this.name} and I'm ${this.age} years old.`);
-    }
+### 4.1 Tại sao cần quản lý cấu hình?
+
+Nếu không quản lý cấu hình đúng cách, ứng dụng sẽ khó deploy, kém bảo mật và khó mở rộng.
+
+**1. Tránh hard-code giá trị quan trọng trong source code**
+
+Ví dụ:
+
+```ts
+const PORT = 3000;
+const DB_URL = 'mongodb://localhost:27017/app';
+const JWT_SECRET = 'my-secret-key';
+```
+
+Vấn đề:
+
+* Không đổi được khi deploy
+* Lộ thông tin nhạy cảm
+* Phải sửa code mỗi lần đổi môi trường
+
+👉 Hard-code = technical debt
+
+👉 Cần tách riêng cấu hình nhạy cảm ra khỏi source code.
+
+
+**2. Một ứng dụng – nhiều môi trường (multi-environment)**
+
+Một ứng dụng Node.js **không bao giờ chỉ chạy 1 môi trường**.
+
+| Môi trường  | Mục đích               |
+| ----------- | ---------------------- |
+| development | Dev local              |
+| staging     | Test trước khi release |
+| production  | Chạy thật              |
+
+Ví dụ cấu hình khác nhau
+
+| Biến      | Dev       | Prod        |
+| --------- | --------- | ----------- |
+| DB_URL    | localhost | server thật |
+| LOG_LEVEL | debug     | error       |
+| PORT      | 3000      | 80          |
+
+👉 **Không thể dùng chung một cấu hình cho tất cả**.
+
+
+
+### 4.2 Cài ConfigModule
+
+```bash
+npm install @nestjs/config
+```
+
+Xem thêm tài liệu chính thức về [ConfigModule](https://docs.nestjs.com/techniques/configuration).
+
+---
+
+### 4.3 Tạo file .env
+
+```env
+PORT=3000
+NODE_ENV=development
+```
+
+---
+
+### 4.4 Sử dụng ConfigModule
+
+```ts
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+---
+
+### 4.5 Sử dụng biến môi trường
+
+Trong các service hoặc controller:
+
+```ts
+constructor(private configService: ConfigService) {}
+
+const port = this.configService.get<number>('PORT');
+```
+
+Trong `main.ts`:
+
+```ts
+const configService = app.get(ConfigService);
+const port = configService.get<number>('PORT') || 3000;
+await app.listen(port);
+```
+
+---
+
+### 4.6 Multi environment (dev / prod)
+
+```env
+.env.development
+.env.production
+```
+
+```ts
+ConfigModule.forRoot({
+  envFilePath: `.env.${process.env.NODE_ENV}`,
+});
+```
+
+---
+
+### 4.6 Tách cấu hình theo file
+
+Việc tách cấu hình theo file giúp:
+
+* Quản lý cấu hình dễ dàng hơn
+* Tái sử dụng cấu hình
+
+Cách làm:
+
+
+
+```ts
+// database.config.ts
+export default () => ({
+  database: {
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT, 10) || 5432,
+  },
+});
+
+// jwt.config.ts
+export default () => ({
+  jwt: {
+    secret: process.env.JWT_SECRET,
+    expiresIn: process.env.JWT_EXPIRES_IN,
+  },
+});
+
+// app.module.ts
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      load: [databaseConfig, jwtConfig],
+      global: true,
+      cache: true,
+    }),
+  ],
+});
+```
+
+---
+
+### 4.7 Validation biến môi trường
+
+Vì sao cần validation?
+
+* Tránh thiếu biến môi trường quan trọng
+* Đảm bảo biến môi trường đúng định dạng
+
+
+Cấu trúc thư mục đề xuất:
+
+```
+src/
+ ├── config/
+ │    ├── app.config.ts
+ │    ├── database.config.ts
+ │    └── validation.schema.ts
+ ├── app.module.ts
+ └── main.ts
+```
+
+
+Vai dụ sử dụng `Joi` để validate:
+
+```bash
+npm install joi
+```
+
+Nội dung `config/app.config.ts`:
+
+```ts 
+import { registerAs } from '@nestjs/config';
+import * as Joi from 'joi';
+
+export default registerAs('app', () => ({
+  port: Number(process.env.PORT),
+  env: process.env.NODE_ENV,
+}));
+
+export const appSchema = {
+  PORT: Joi.number().default(3000),
+  NODE_ENV: Joi.string()
+    .valid('development', 'production', 'test')
+    .default('development'),
+};
+```
+
+Nội dung `config/database.config.ts`:
+
+```ts
+import { registerAs } from '@nestjs/config';
+import * as Joi from 'joi';
+
+export const databaseSchema = {
+  DB_HOST: Joi.string().required(),
+  DB_PORT: Joi.number().required(),
+  DB_NAME: Joi.string().required(),
+  DB_USER: Joi.string().required(),
+  DB_PASSWORD: Joi.string().required(),
 };
 
-person.greet(); // Hello, my name is John and I'm 30 years old.
+export default registerAs('database', () => ({
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
+  name: process.env.DB_NAME,
+  username: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+}));
+
 ```
 
-Xem thêm tại: https://www.w3schools.com/typescript/typescript_aliases_and_interfaces.php
+Nội dung file `config/validation.schema.ts`:
 
-##  **Decorators**
-
-Decorators trong TypeScript là một tính năng mạnh mẽ cho phép thêm metadata hoặc hành vi đặc biệt vào lớp, phương thức, thuộc tính hoặc tham số. Chúng được sử dụng rộng rãi trong các framework như Angular và NestJS.
-
-```typescript
-function logClass(target: any) {
-    console.log(`New instance of ${target.name} created.`);
-}
-
-function logMethod(target: any, key: string, descriptor: PropertyDescriptor) {
-    const originalMethod = descriptor.value;
-    descriptor.value = function(...args: any[]) {
-        console.log(`Calling method ${key} with arguments: ${args.join(", ")}`);
-        const result = originalMethod.apply(this, args);
-        console.log(`Method ${key} returned: ${result}`);
-        return result;
-    };
-    return descriptor;
-}
-
-@logClass
-class Person {
-    name: string;
-    age: number;
-
-    constructor(name: string, age: number) {
-        this.name = name;
-        this.age = age;
-    }
-
-    @logMethod
-    greet() {
-        console.log(`Hello, my name is ${this.name} and I'm ${this.age} years old.`);
-    }
-}
-
-let person = new Person("John", 30);
-person.greet();
+```ts
+import * as Joi from 'joi';
+import { appSchema } from './app.config';
+import { databaseSchema } from './database.config';
+export const validationSchema = Joi.object({
+  ...appSchema,
+  ...databaseSchema,
+});
 ```
 
-##  **Generics**
+Nội dung file `app.module.ts`:
 
-Generics trong TypeScript cho phép tạo ra các component có thể hoạt động với nhiều loại dữ liệu khác nhau. Chúng giúp viết mã nguồn linh hoạt hơn và có thể tái sử dụng.
+```ts   
+// src/app.module.ts
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 
-```typescript
-function identity<T>(arg: T): T {
-    return arg;
-}
+import appConfig from './config/app.config';
+import databaseConfig from './config/database.config';
+import { validationSchema } from './config/validation.schema';
 
-let result1 = identity<string>("Hello");
-let result2 = identity<number>(42);
-
-console.log(result1); // "Hello"
-console.log(result2); // 42
-
-interface KeyValuePair<T, U> {
-    key: T;
-    value: U;
-}
-
-let pair1: KeyValuePair<string, number> = { key: "foo", value: 42 };
-let pair2: KeyValuePair<number, string> = { key: 42, value: "bar" };
-
-console.log(pair1); // { key: 'foo', value: 42 }
-console.log(pair2); // { key: 42, value: 'bar' }
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,           // dùng ở mọi module
+      load: [appConfig, databaseConfig],
+      validationSchema,         // Joi validate
+    }),
+  ],
+})
+export class AppModule {}
 ```
 
-Xem thêm tại: https://www.w3schools.com/typescript/typescript_basic_generics.php
+Nâng cao: Tìm hiểu về cách cấu hình từng phần cho module khi nó được load với `Partial registration` tại dây: [ConfigModule - Partial Registration](https://docs.nestjs.com/techniques/configuration#partial-registration).
 
-##  **Modules và Namespaces**
 
-TypeScript hỗ trợ khái niệm modules để tổ chức và quản lý mã nguồn. Bạn có thể chia mã nguồn thành nhiều file và import/export các phần tử cần thiết giữa các file.
 
-```typescript
-// person.ts
-export class Person {
-    name: string;
-    age: number;
+---
 
-    constructor(name: string, age: number) {
-        this.name = name;
-        this.age = age;
-    }
+## 5. Chuẩn định dạng hóa mã nguồn với Prettier & ESLint hoặc Biome
 
-    greet() {
-        console.log(`Hello, my name is ${this.name} and I'm ${this.age} years old.`);
-    }
-}
 
-// app.ts
-import { Person } from "./person";
+### 5.1 Tại sao cần chuẩn định dạng hóa mã nguồn?
 
-let person = new Person("John", 30);
-person.greet(); // Hello, my name is John and I'm 30 years old.
-```
+Định dạng hóa mã nguồn giúp:
 
-Namespaces cũng được sử dụng để tổ chức mã nguồn, nhưng khác với modules, chúng không được biên dịch thành các module JavaScript riêng biệt mà được đóng gói vào một file JavaScript duy nhất.
+* Giữ code nhất quán trong team
+* Dễ đọc, dễ bảo trì
+* Giảm xung đột khi làm việc nhóm
+* Tăng năng suất phát triển
 
-Trong bài học này, bạn đã được giới thiệu về các khái niệm cơ bản của TypeScript, từ biến và kiểu dữ liệu đến lập trình hướng đối tượng, interface, decorators, generics, modules và namespaces. Điều này sẽ giúp bạn có nền tảng vững chắc để học và làm việc với NestJS, vì NestJS được xây dựng trên nền tảng TypeScript.
+### 5.2 Công cụ định dạng hóa mã nguồn phổ biến
+
+- Cách triển khai với Prettier & ESLint [xem ở đây](./eslint-prettier.md)
+- Cách triển khai với Biome [xem ở đây](./biomejs.md)
