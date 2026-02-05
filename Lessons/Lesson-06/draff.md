@@ -407,8 +407,6 @@ async getCategoryTree() {
 
 **Khái niệm:** Tự động thực hiện các thao tác (insert, update, remove) trên các entity liên quan.
 
-Khái niệm này hoạt động như cách bạn cấu hình tùy chọn khóa ngoại (foreign key) trong RDBMS với các hành vi như CASCADE, SET NULL, v.v.
-
 ```typescript
 @Entity()
 export class User {
@@ -624,12 +622,6 @@ export class Order {
 }
 ```
 
-**Khi nào thì dùng casscade vs onDelete/onUpdate ?**
-
-- Dùng **cascade** khi muốn tự động thao tác trên entity liên quan trong ứng dụng (insert, update, remove).
-- Dùng **onDelete/onUpdate** để thiết lập hành vi ở cấp database, đảm bảo tính toàn vẹn dữ liệu khi thao tác trực tiếp trên database.
-
-
 ---
 
 ### 1.9. Circular Dependencies
@@ -660,7 +652,6 @@ export class Post {
 **Giải pháp: Dùng forward reference**
 
 ```typescript
-import type { Post } from './post.entity'; // type-only import ✅
 // ✅ Đúng: Dùng arrow function
 // user.entity.ts
 @Entity()
@@ -671,7 +662,6 @@ export class User {
 }
 
 // post.entity.ts
-import type { User } from './user.entity'; // type-only import ✅
 @Entity()
 export class Post {
   @ManyToOne(() => User, user => user.posts)
@@ -679,6 +669,8 @@ export class Post {
   author: User;
 }
 ```
+
+**Giải thích:** Arrow function `() => Entity` được evaluate sau khi tất cả entities đã load, tránh circular import.
 
 ---
 
@@ -689,15 +681,15 @@ export class Post {
 #### **Basic FindOptions**
 
 ```typescript
-// Lấy tất cả users
+// Find all
 const users = await this.userRepository.find();
 
-// Lấy một user theo ID
+// Find one
 const user = await this.userRepository.findOne({
   where: { id: 1 }
 });
 
-// Lấy nhiều users với điều kiện, sắp xếp, phân trang
+// Find with conditions
 const users = await this.userRepository.find({
   where: { 
     email: 'test@example.com',
@@ -878,8 +870,6 @@ TypeOrmModule.forRoot({
 
 ### 2.3. Pagination
 
-TypeORM hỗ trợ phân trang qua `skip` và `take` trong FindOptions. Dưới đây là hai cách phổ biến: Offset-based và Cursor-based pagination.
-
 #### **Offset-based Pagination**
 
 ```typescript
@@ -905,7 +895,7 @@ async getPaginatedUsers(page: number = 1, limit: number = 10) {
 **Ưu điểm:** Đơn giản, dễ implement.
 
 **Nhược điểm:** 
-- Chậm với offset lớn (phải skip nhiều records). Về bản chất database vẫn phải duyệt qua các bản ghi đã skip.
+- Chậm với offset lớn (phải skip nhiều records)
 - Inconsistent khi có insert/delete trong lúc phân trang
 
 #### **Cursor-based Pagination**
@@ -948,17 +938,9 @@ async getCursorPaginatedUsers(
 - Không thể jump đến page cụ thể
 - Phức tạp hơn
 
-
-#### Giải pháp áp dụng Cursor-based Pagination có thể phân trang mượt mà cho các API danh sách lớn.
-
-```typescript
-```
-
 ---
 
 ### 2.4. Filtering & Search
-
-Dưới đây là ví dụ về cách implement filtering và search nâng cao với TypeORM.
 
 ```typescript
 async searchUsers(filters: {

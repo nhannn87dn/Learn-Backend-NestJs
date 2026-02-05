@@ -125,6 +125,8 @@ node -v
 npm -v
 ```
 
+Tải và cài đặt NodeJs: https://nodejs.org/en/download
+
 👉 Khuyến nghị **Node.js >= 18**
 
 ---
@@ -239,6 +241,10 @@ async function bootstrap() {
 
 Bạn cần cài thêm package `@nestjs/platform-fastify` và `fastify` để sử dụng Fastify làm nền tảng cho ứng dụng NestJS của mình.
 
+```bash
+npm i --save @nestjs/platform-fastify
+```
+
 Xem thêm tài liệu chính thức về [Fastify với NestJS](https://docs.nestjs.com/techniques/performance#fastify).
 
 
@@ -260,6 +266,8 @@ export class AppModule {}
 ---
 
 ### 3.4 Core Concepts Overview
+
+Concept chính của NestJS gồm 3 khái niệm:
 
 **Controller**:
 
@@ -401,6 +409,7 @@ NODE_ENV=development
 ### 4.4 Sử dụng ConfigModule
 
 ```ts
+//src/app.module.ts
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -428,7 +437,9 @@ Trong `main.ts`:
 ```ts
 const configService = app.get(ConfigService);
 const port = configService.get<number>('PORT') || 3000;
-await app.listen(port);
+await app.listen(port, () => {
+    console.log(`Application running at http://localhost:${port}`);
+  });
 ```
 
 ---
@@ -460,7 +471,7 @@ Cách làm:
 
 
 ```ts
-// database.config.ts
+//src/common/configs/database.config.ts
 export default () => ({
   database: {
     host: process.env.DB_HOST,
@@ -468,7 +479,7 @@ export default () => ({
   },
 });
 
-// jwt.config.ts
+//src/common/configs/jwt.config.ts
 export default () => ({
   jwt: {
     secret: process.env.JWT_SECRET,
@@ -476,7 +487,7 @@ export default () => ({
   },
 });
 
-// app.module.ts
+//src/app.module.ts
 @Module({
   imports: [
     ConfigModule.forRoot({

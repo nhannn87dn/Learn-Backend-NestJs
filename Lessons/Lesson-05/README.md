@@ -18,18 +18,21 @@
 ### 1.1. Khái niệm về ORM
 
 **ORM** (Object-Relational Mapping) là một kỹ thuật lập trình cho phép bạn **ánh xạ** (mapping) giữa:
+
 - **Objects** trong code (class, instance)
 - **Tables** trong relational database (bảng, cột, hàng)
 
 **Ví dụ đơn giản:**
 
 Thay vì viết SQL:
+
 ```sql
 SELECT * FROM books WHERE id = 1;
 INSERT INTO books (title, description, pages) VALUES ('Clean Code', 'A handbook...', 464);
 ```
 
 Bạn có thể làm việc với objects:
+
 ```typescript
 // Lấy sách
 const book = await bookRepository.findOne({ where: { id: 1 } });
@@ -48,6 +51,7 @@ await bookRepository.save(newBook);
 **Vấn đề 1: SQL Injection**
 
 Không dùng ORM (dễ bị SQL Injection):
+
 ```typescript
 // ❌ NGUY HIỂM
 const userId = request.params.id; // "1 OR 1=1"
@@ -57,6 +61,7 @@ const query = `SELECT * FROM users WHERE id = ${userId}`;
 ```
 
 Dùng ORM (an toàn):
+
 ```typescript
 // ✅ AN TOÀN
 const user = await userRepository.findOne({ 
@@ -68,6 +73,7 @@ const user = await userRepository.findOne({
 **Vấn đề 2: Code lặp lại nhiều**
 
 Không dùng ORM:
+
 ```typescript
 // Phải viết SQL cho mọi thao tác
 const createUser = async (data) => {
@@ -87,6 +93,7 @@ const deleteUser = async (id) => {
 ```
 
 Dùng ORM:
+
 ```typescript
 // ORM cung cấp sẵn methods
 await userRepository.save(userData);
@@ -95,6 +102,8 @@ await userRepository.delete(id);
 ```
 
 **Vấn đề 3: Database-specific syntax**
+
+Cùng một thao tác nhưng SQL khác nhau giữa các loại DBMS:
 
 ```typescript
 // PostgreSQL
@@ -105,8 +114,13 @@ SELECT * FROM users LIMIT 20, 10;
 
 // SQL Server
 SELECT * FROM users ORDER BY id OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY;
+```
 
-// Với ORM - cùng một syntax
+Với ORM - cùng một syntax.
+
+Nó giống như  một `abstraction layer` tự điều chỉnh cho từng database:
+
+```typescript
 userRepository.find({ 
   skip: 20, 
   take: 10 
@@ -142,12 +156,14 @@ class User {
 | **Learning Curve** | Cần biết SQL | Cần học ORM |
 
 **Khi nào dùng SQL thuần?**
+
 - Query phức tạp, cần tối ưu cao
 - Reporting, analytics
 - Bulk operations lớn
 - Stored procedures
 
 **Khi nào dùng ORM?**
+
 - CRUD operations thông thường
 - Application với nhiều business logic
 - Cần type safety và maintainability
@@ -160,6 +176,7 @@ class User {
 ### 2.1. Tổng quan về TypeORM
 
 **TypeORM** là một ORM được viết bằng TypeScript, hỗ trợ nhiều databases:
+
 - PostgreSQL
 - MySQL / MariaDB
 - SQLite
@@ -167,7 +184,10 @@ class User {
 - Oracle
 - MongoDB (partial support)
 
+> Trang chủ TypeORM: [https://typeorm.io/docs/getting-started](https://typeorm.io/docs/getting-started)
+
 **Đặc điểm:**
+
 - Sử dụng **Decorators** để define entities
 - Hỗ trợ **Active Record** và **Data Mapper** patterns
 - Migration system mạnh mẽ
@@ -198,10 +218,13 @@ export class Book {
 ### 2.2. Tổng quan về Prisma
 
 **Prisma** là một modern ORM với approach khác:
+
 - Schema được định nghĩa trong file `.prisma`
 - Type-safe client được generate tự động
 - Migration system đơn giản
 - Prisma Studio (GUI tool)
+
+> Trang chủ Prisma ORM: [https://www.prisma.io/orm](https://www.prisma.io/orm)
 
 **Ví dụ Schema với Prisma:**
 
@@ -232,6 +255,7 @@ model Book {
 | **NestJS Integration** | Native support | Cần setup thêm |
 
 **TypeORM:**
+
 ```typescript
 // Query với TypeORM
 const books = await bookRepository
@@ -242,6 +266,7 @@ const books = await bookRepository
 ```
 
 **Prisma:**
+
 ```typescript
 // Query với Prisma
 const books = await prisma.book.findMany({
@@ -279,6 +304,7 @@ npm install @nestjs/typeorm typeorm pg
 ```
 
 **Packages:**
+
 - `@nestjs/typeorm`: NestJS wrapper cho TypeORM
 - `typeorm`: ORM library
 - `pg`: PostgreSQL driver
@@ -305,6 +331,7 @@ NODE_ENV=development
 ```
 
 **Giải thích:**
+
 - `DB_TYPE`: Loại database (postgres, mysql, sqlite...)
 - `DB_HOST`: Địa chỉ database server
 - `DB_PORT`: Port của database (PostgreSQL default: 5432, MySQL: 3306)
@@ -325,6 +352,7 @@ DB_SYNCHRONIZE=false // PHẢI dùng migrations
 ```
 
 Tại sao không dùng synchronize trong production?
+
 - Có thể mất dữ liệu khi alter table
 - Không có version control cho schema changes
 - Không rollback được nếu có lỗi
@@ -346,7 +374,6 @@ Giải thích file cấu hình:
 - `logging`: Bật log SQL queries
 - `ssl`: Cấu hình SSL nếu cần, nếu dùng trong production với cloud DB
 - `extra`: Các options bổ sung cho driver.
-
 
 #### Bước 2: Import ConfigModule và TypeOrmModule trong AppModule
 
@@ -391,11 +418,13 @@ export class AppModule {}
 **Giải thích:**
 
 **ConfigModule.forRoot():**
+
 - `isGlobal: true`: ConfigService có thể inject ở mọi module mà không cần import
 - `load: [databaseConfig]`: Load configuration từ file
 - `envFilePath: '.env'`: Đường dẫn đến file environment
 
 **TypeOrmModule.forRootAsync():**
+
 - Async configuration cho phép inject dependencies
 - `useFactory`: Function trả về TypeORM options
 - Sử dụng ConfigService để lấy database config
@@ -425,6 +454,7 @@ export class BooksModule {}
 ```
 
 **TypeOrmModule.forFeature([Book]):**
+
 - Đăng ký Book entity cho module này
 - Tạo Repository cho Book entity
 - Repository có thể inject vào services
@@ -450,13 +480,12 @@ export class BooksService {
 ```
 
 **@InjectRepository(Book):**
+
 - Decorator để inject Book Repository
 - TypeORM tự động tạo Repository từ Entity
-- Repository<Book> là type của repository
-
+- `Repository<Book>` là type của repository
 
 Qua `repository`, bạn có thể thực hiện các thao tác truy vấn trên Book entity.
-
 
 ### 3.4. Database module trong NestJS: forRoot và forFeature
 
@@ -479,6 +508,7 @@ TypeOrmModule.forRoot({
 ```
 
 **Chức năng:**
+
 - Thiết lập connection đến database
 - Load tất cả entities
 - Tạo DataSource (connection pool)
@@ -492,6 +522,7 @@ TypeOrmModule.forFeature([Book, Author, Category])
 ```
 
 **Chức năng:**
+
 - Đăng ký entities cụ thể cho module
 - Tạo repositories cho các entities
 - Repositories có thể inject vào services trong module đó
@@ -612,23 +643,28 @@ export class Book {
 **Giải thích các decorators:**
 
 **@Entity('books'):**
+
 - Đánh dấu class là một entity
 - `'books'` là tên table trong database
 - Nếu không truyền tên, TypeORM sẽ dùng tên class (lowercase)
 
 **@PrimaryGeneratedColumn():**
+
 - Primary key tự động tăng (auto-increment)
 - Tương đương SQL: `id SERIAL PRIMARY KEY` (PostgreSQL) hoặc `id INT AUTO_INCREMENT PRIMARY KEY` (MySQL)
 
 **@Column():**
+
 - Đánh dấu property là một column
 - Có thể config type, length, nullable, default, unique...
 
 **@CreateDateColumn():**
+
 - Tự động set thời gian khi record được tạo
 - Type: `timestamp with time zone`
 
 **@UpdateDateColumn():**
+
 - Tự động update thời gian khi record được cập nhật
 
 **Column Options:**
@@ -741,6 +777,10 @@ createQueryBuilder() // Tạo complex queries
 ---
 
 ## 5. CRUD cơ bản
+
+`CURD` là viết tắt của các thao tác cơ bản với dữ liệu. Sau đây là cách implement CRUD operations cho Book entity sử dụng BookRepository.
+
+Giúp bạn hiểu rõ hơn về cách sử dụng Repository để thực hiện các thao tác với database.
 
 ### 5.1. Tạo Entity
 
@@ -907,12 +947,14 @@ export class BooksService {
 **Giải thích các Repository methods:**
 
 **1. create() - Tạo entity instance:**
+
 ```typescript
 const book = this.bookRepository.create(createBookDto);
 // Chỉ tạo object, CHƯA save vào DB
 ```
 
 **2. save() - Lưu vào database:**
+
 ```typescript
 await this.bookRepository.save(book);
 // INSERT nếu chưa có id
@@ -920,6 +962,7 @@ await this.bookRepository.save(book);
 ```
 
 **3. findOne() - Tìm một record:**
+
 ```typescript
 const book = await this.bookRepository.findOne({
   where: { id: 1 },
@@ -929,6 +972,7 @@ const book = await this.bookRepository.findOne({
 ```
 
 **4. find() - Tìm nhiều records:**
+
 ```typescript
 const books = await this.bookRepository.find({
   where: { pages: Between(100, 500) },
@@ -939,12 +983,14 @@ const books = await this.bookRepository.find({
 ```
 
 **5. delete() - Xóa theo điều kiện:**
+
 ```typescript
 await this.bookRepository.delete({ id: 1 });
 await this.bookRepository.delete([1, 2, 3]);
 ```
 
 **6. update() - Update theo điều kiện:**
+
 ```typescript
 await this.bookRepository.update(
   { id: 1 },
@@ -953,6 +999,7 @@ await this.bookRepository.update(
 ```
 
 **7. createQueryBuilder() - Complex queries:**
+
 ```typescript
 const books = await this.bookRepository
   .createQueryBuilder('book')
@@ -1069,12 +1116,14 @@ export class BooksController {
 ### 6.1. Sự khác biệt giữa DTO Response và Entity
 
 **Entity:**
+
 - Đại diện cho database table
 - Chứa tất cả columns, including sensitive data
 - Có decorators của TypeORM
 - Map trực tiếp với database schema
 
 **DTO Response:**
+
 - Đại diện cho data được trả về client
 - Chỉ chứa data cần thiết
 - Không có decorators của TypeORM
@@ -1131,6 +1180,8 @@ export class BookResponseDto {
   summary: string;
 }
 ```
+
+
 
 ### 6.2. Tại sao không nên trả về Entity trực tiếp từ Controller
 
@@ -1242,7 +1293,271 @@ export class BookResponseDtoV2 {
 }
 ```
 
-### 6.3. Giải pháp với DTO Response
+## 7. Giải pháp Response
+
+Có nhiều cách để giải quyết vấn đề trả về response an toàn và hiệu quả trong đó có 3 cách phổ biến:
+
+### 7.1. Serialization
+
+#### 7.1. **Serialization là gì?**
+
+**Serialization** là quá trình chuyển đổi objects thành format phù hợp để gửi qua network (thường là JSON).
+
+```pgsql
+Class instance (UserEntity, DTO, object) 
+        ↓
+JSON (response)
+```
+
+Trong quá trình này NestJS serialization giúp:
+
+- Loại bỏ các fields nhạy cảm (password, tokens)
+- Transform dữ liệu trước khi gửi response
+- Đổi tên fields
+- Định dạng response theo chuẩn
+
+➡️ Toàn bộ quá trình đó gọi là **serialization**.
+
+> 📃 Xem tài liệu chính thức về [Serialization trong NestJS](https://docs.nestjs.com/techniques/serialization)
+
+#### 7.2. Ví dụ chưa sử dụng Serialization với NestJS
+
+```typescript
+class Book {
+  id: number;
+  title: string;
+  description: string;
+  pages: number;
+  genres: string[];
+  isbn?: string;
+  publishedYear?: number;
+  createdAt: Date;
+  updatedAt: Date;
+  internalCode: string; // Field nhạy cảm không muốn expose
+}
+```
+
+Kết quả trả về khi gọi API:
+
+```json
+{
+  "id": 1,
+  "title": "Clean Code",
+  "description": "A handbook...",
+  "pages": 464,
+  "genres": ["Programming"],
+  "isbn": "978-0132350884",
+  "publishedYear": 2008,
+  "createdAt": "2024-01-20T10:30:00.000Z",
+  "updatedAt": "2024-01-20T10:30:00.000Z",
+  "internalCode": "XYZ123" // Field nhạy cảm bị lộ
+}
+```
+
+❌ Rất nguy hiểm → lộ thông tin nhạy cảm!
+
+#### 7.3. Serialization trong NestJS hoạt động thế nào?
+
+NestJS sử dụng thư viện `class-transformer` để hỗ trợ serialization thông qua decorators như `@Expose()`, `@Exclude()`, và `@Transform()`.
+
+👉 Khi bạn bật ở cấp độ global:
+
+```typescript
+// src/main.ts
+import { ClassSerializerInterceptor } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  app.useGlobalInterceptors(
+    new ClassSerializerInterceptor(app.get(Reflector))
+  );
+
+  await app.listen(3000);
+}
+```
+
+hoặc dùng tại controller hoặc method:
+
+```typescript
+// src/books/books.controller.ts
+import { ClassSerializerInterceptor, UseInterceptors } from '@nestjs/common';
+import { BookEntity } from './entities/book.entity';
+
+@Controller('books')
+export class BooksController {
+  constructor(private readonly booksService: BooksService) {}
+
+  @Get(':id')
+  //Sử dụng tại mỗi method
+  @UseInterceptors(ClassSerializerInterceptor)
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    const book = this.booksService.findOne(id);
+    return new BookEntity(book);
+  }
+
+  @Get()
+  findAll(@Query() filterDto: FilterBooksDto) {
+    const result = this.booksService.findAll(filterDto);
+    return {
+      ...result,
+      data: result.data.map(book => new BookEntity(book)),
+    };
+  }
+}
+```
+
+trong controller hoặc method, NestJS sẽ tự động áp dụng serialization cho các object trả về từ controller.
+
+NestJS sẽ:
+
+1. Lấy object bạn `return` từ controller
+2. Nếu đó là **class instance**
+3. Chạy qua **class-transformer**
+4. Áp dụng các decorator:
+
+   - `@Exclude()`
+   - `@Expose()`
+   - `@Transform()`
+5. Trả JSON đã được “lọc & biến đổi”
+
+**Entity class với class-transformer:**
+
+```typescript
+// src/books/entities/book.entity.ts
+import { Exclude, Expose, Transform } from 'class-transformer';
+
+@Exclude() // Loại bỏ tất cả fields mặc định
+export class BookEntity {
+  //Các fields được expose
+  @Expose()
+  id: number;
+
+  @Expose()
+  title: string;
+
+  @Expose()
+  description: string;
+
+  @Expose()
+  pages: number;
+
+  @Expose()
+  genres: string[];
+
+  @Expose()
+  isbn?: string;
+
+  @Expose()
+  publishedYear?: number;
+
+  @Expose()
+  @Transform(({ value }) => value.toISOString())
+  createdAt: Date;
+
+  @Expose()
+  @Transform(({ value }) => value.toISOString())
+  updatedAt: Date;
+
+  // Computed property
+  @Expose()
+  get summary(): string {
+    return `${this.title} - ${this.pages} trang`;
+  }
+
+  constructor(partial: Partial<BookEntity>) {
+    Object.assign(this, partial);
+  }
+}
+```
+
+**Response sau khi sử dụng Serialization:**
+
+```json
+{
+  "id": 1,
+  "title": "Clean Code",
+  "description": "A handbook...",
+  "pages": 464,
+  "genres": ["Programming"],
+  "isbn": "978-0132350884",
+  "publishedYear": 2008,
+  "createdAt": "2024-01-20T10:30:00.000Z",
+  "updatedAt": "2024-01-20T10:30:00.000Z",
+  "summary": "Clean Code - 464 trang"
+}
+```
+
+**Lưu ý:** Chỉ những fields được đánh dấu với `@Expose()` mới xuất hiện trong response. Field `internalCode` đã bị loại bỏ hoàn toàn.
+
+#### 7.4. Vấn đề lớn: Object thường là plain object, không phải class instance
+
+Giả sử bạn có query DB:
+
+```typescript
+const book = await this.bookRepository.findOne(id);
+return book;
+```
+
+Kết quả `book` là:
+
+```json
+{
+  "id": 1,
+  "title": "Clean Code",
+  "description": "A handbook...",
+  "pages": 464,
+  "genres": ["Programming"],
+  "isbn": "978-0132350884",
+  "publishedYear": 2008,
+  "createdAt": "2024-01-20T10:30:00.000Z",
+  "updatedAt": "2024-01-20T10:30:00.000Z",
+  "internalCode": "XYZ123"
+}
+```
+
+👉 Đây thường là một `plain object`, KHÔNG phải instance của `BookEntity`!
+
+❌ ==> Khiến cho `@Exclude()` **KHÔNG hoạt động** như mong muốn.
+
+#### 7.5. Giải pháp: Luôn trả về class instance từ controller
+
+Follow chuẩn trong NestJS:
+
+```scss
+DB result (plain object)
+        ↓
+plainToInstance()
+        ↓
+ClassSerializerInterceptor
+        ↓
+JSON response an toàn
+```
+
+**Sử dụng plainToInstance từ class-transformer:**
+
+Trong service:
+
+```typescript
+import { BookEntity } from './entities/book.entity';
+import { plainToInstance } from 'class-transformer';
+
+const book = await this.bookRepository.findOne(id);
+return plainToInstance(BookEntity, book);
+```
+
+Trong controller:
+
+```typescript
+@Get(':id')
+findOne(@Param('id', ParseIntPipe) id: number) {
+  return this.booksService.findOne(id);
+}
+```
+
+
+### 7.2. Sử dụng DTO Response thay vì Entity
 
 Ví dụ về DTO Response cho Book:
 
@@ -1306,15 +1621,17 @@ Ngoài cách trên, bạn có thể sử dụng `Data Mapper Pattern` như phầ
 
 ---
 
-## 7. Data Mapper Pattern
+### 7.3 Data Mapper Pattern
 
-### 7.1. Giới thiệu Data Mapper Pattern
+#### 7.3.1. Giới thiệu Data Mapper Pattern
 
 **Data Mapper Pattern** là một pattern tách biệt:
-- **Domain logic** (business logic) 
+
+- **Domain logic** (business logic)
 - **Database logic** (persistence logic)
 
 **Trong context NestJS + TypeORM:**
+
 - **Entity** = Database representation
 - **Domain Model / DTO** = Business representation
 - **Mapper** = Convert giữa Entity và DTO
@@ -1326,9 +1643,10 @@ Database (Entity)  ←→  Mapper  ←→  Business Logic (DTO)
      Book Entity          BookMapper      BookResponseDto
 ```
 
-### 7.2. Lợi ích của việc sử dụng Data Mapper Pattern
+#### 7.3.2. Lợi ích của việc sử dụng Data Mapper Pattern
 
 **1. Separation of Concerns:**
+
 ```typescript
 // Entity - Chỉ lo database
 @Entity()
@@ -1360,6 +1678,7 @@ export class BookMapper {
 ```
 
 **2. Flexibility:**
+
 ```typescript
 // Dễ dàng thay đổi response format mà không động đến Entity
 export class BookMapper {
@@ -1380,6 +1699,7 @@ export class BookMapper {
 ```
 
 **3. Testability:**
+
 ```typescript
 // Dễ test Mapper riêng biệt
 describe('BookMapper', () => {
@@ -1397,6 +1717,7 @@ describe('BookMapper', () => {
 ```
 
 **4. Reusability:**
+
 ```typescript
 // Một Entity có thể map thành nhiều DTOs
 export class BookMapper {
@@ -1407,7 +1728,7 @@ export class BookMapper {
 }
 ```
 
-### 7.3. Cách triển khai Data Mapper Pattern với NestJS
+#### 7.3.3. Cách triển khai Data Mapper Pattern với NestJS
 
 **Bước 1: Tạo Response DTOs:**
 
@@ -1622,7 +1943,7 @@ export class BooksController {
 }
 ```
 
-### 7.4. Ví dụ minh họa sử dụng Data Mapper Pattern
+#### 7.3.4. Ví dụ minh họa sử dụng Data Mapper Pattern
 
 **Advanced Mapper với Relations:**
 
@@ -1749,6 +2070,7 @@ Xem hướng dẫn chi tiết tại: [NestJS Multi Database Connections](./multi
 ### 9.1. Entity Design
 
 ✅ **DO:**
+
 ```typescript
 @Entity('books')
 export class Book {
@@ -1771,6 +2093,7 @@ export class Book {
 ```
 
 ❌ **DON'T:**
+
 ```typescript
 @Entity()
 export class book { // Lowercase class name
@@ -1784,6 +2107,7 @@ export class book { // Lowercase class name
 ### 9.2. Repository Usage
 
 ✅ **DO:**
+
 ```typescript
 // Sử dụng transactions cho multiple operations
 async createBookWithAuthor(data: any) {
@@ -1810,6 +2134,7 @@ async createBookWithAuthor(data: any) {
 ```
 
 ❌ **DON'T:**
+
 ```typescript
 // Không dùng transaction cho related operations
 async createBookWithAuthor(data: any) {
@@ -1826,6 +2151,7 @@ async createBookWithAuthor(data: any) {
 ### 9.3. Performance Tips
 
 **1. Sử dụng select cụ thể:**
+
 ```typescript
 // ✅ Chỉ lấy fields cần thiết
 const books = await this.bookRepository.find({
@@ -1837,6 +2163,7 @@ const books = await this.bookRepository.find();
 ```
 
 **2. Eager loading cho relations:**
+
 ```typescript
 // ✅ Load relation trong 1 query
 const books = await this.bookRepository.find({
@@ -1851,6 +2178,7 @@ for (const book of books) {
 ```
 
 **3. Pagination:**
+
 ```typescript
 // ✅ Always paginate
 const [books, total] = await this.bookRepository.findAndCount({
@@ -1865,6 +2193,7 @@ const books = await this.bookRepository.find();
 ### 9.4. Security
 
 **1. Không expose sensitive fields:**
+
 ```typescript
 // ✅ Sử dụng DTO Response
 return BookMapper.toResponseDto(book);
@@ -1874,6 +2203,7 @@ return book; // Có thể lộ sensitive data
 ```
 
 **2. Validate input:**
+
 ```typescript
 // ✅ Sử dụng DTO với validation
 async create(@Body() createBookDto: CreateBookDto) {

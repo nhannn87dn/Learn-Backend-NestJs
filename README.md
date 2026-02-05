@@ -89,12 +89,11 @@
   * Class-validator và class-transformer
   * Sử dụng ValidationPipe
   * Custom Validation Pipe
-* Error Handling và Serializations
+* Error Handling
   * Exception Filters
   * Built-in HTTP Exceptions
   * Custom Exception Filter
-  * Serialization với Class-serializers
-* Handling Requests và Responses
+* Handling Responses
   * Transform response
   * Custom response format
   

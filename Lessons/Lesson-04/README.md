@@ -5,7 +5,7 @@
 - Hiểu về vòng đời của một request trong NestJS
 - Tìm hiểu về Validation và Transformation với DTO
 - Quản lý lỗi và Serialization trong NestJS
-- Xử lý Requests và Responses
+- Chuẩn hóa Responses
 - Hiểu về Execution Context và Metadata với Decorators
 
 ---
@@ -386,7 +386,6 @@ Bạn sử dụng Interceptor khi cần cần can thiệp vào quá trình xử 
   - Biến đổi request/response
   - Có Dependency Injection đầy đủ
   - Phù hợp cho logging, transform, caching, exception handling
-
 
 ---
 
@@ -800,7 +799,7 @@ Xem chi tiết [Custom Pipes trong NestJS](./custom-pipe.md)
 
 ---
 
-## 3. Error Handling và Serialization
+## 3. Error Handling
 
 ### 3.1. Tại sao cần quản lý lỗi?
 
@@ -1130,6 +1129,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
 **Áp dụng Exception Filter:**
 
+Ta có thể áp dụng Exception Filters ở nhiều cấp độ khác nhau: global, controller, hoặc method.
+
+**Global filter:**
+
 ```typescript
 // src/main.ts - Global filter
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -1141,7 +1144,11 @@ async function bootstrap() {
 
   await app.listen(3000);
 }
+```
 
+**Controller-level và Method-level filter:**
+
+```typescript
 // Controller-level filter
 import { UseFilters } from '@nestjs/common';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
@@ -1160,122 +1167,60 @@ create(@Body() createBookDto: CreateBookDto) {
 }
 ```
 
-Xem thêm tại [Custom Exception Filters trong NestJS](./custom-exception-filter.md)
+> 📃 Xem thêm tại [Custom Exception Filters trong NestJS](./custom-exception-filter.md)
 
 ---
 
-### 3.3. Serialization
 
-**Serialization** là quá trình chuyển đổi objects thành format phù hợp để gửi qua network (thường là JSON). Trong NestJS, serialization giúp:
+## 4. Handling Responses
 
-- Loại bỏ các fields nhạy cảm (password, tokens)
-- Transform dữ liệu trước khi gửi response
-- Định dạng response theo chuẩn
+Khi xây dựng API, việc quản lý requests và responses một cách nhất quán và có cấu trúc là rất quan trọng. Điều này giúp cải thiện trải nghiệm người dùng, dễ dàng mở rộng và bảo trì mã nguồn.
 
-**Entity class với class-transformer:**
+### 4.1. Vấn đề cân giải quyết
 
-```typescript
-// src/books/entities/book.entity.ts
-import { Exclude, Expose, Transform } from 'class-transformer';
+Khi một dự án có **nhiều endpoints**, **nhiều người** phát triển, việc đảm bảo rằng tất cả responses đều có cấu trúc giống nhau có thể trở nên khó khăn. Một số vấn đề phổ biến bao gồm:
 
-@Exclude() // Loại bỏ tất cả fields mặc định
-export class BookEntity {
-  //Các fields được expose
-  @Expose()
-  id: number;
+- **Inconsistent Response Formats:** Các endpoints trả về các cấu trúc response
+khác nhau, gây khó khăn cho client khi xử lý dữ liệu.
+- **Lack of Metadata:** Thiếu thông tin bổ sung như status codes, messages, timestamps, pagination info.
+- **Error Handling:** Không có cách chuẩn để trả về lỗi, dẫn đến việc client không thể xử lý lỗi một cách hiệu quả.
 
-  @Expose()
-  title: string;
+Ví dụ về response không nhất quán:
 
-  @Expose()
-  description: string;
+Endpoint A trả về:
 
-  @Expose()
-  pages: number;
-
-  @Expose()
-  genres: string[];
-
-  @Expose()
-  isbn?: string;
-
-  @Expose()
-  publishedYear?: number;
-
-  @Expose()
-  @Transform(({ value }) => value.toISOString())
-  createdAt: Date;
-
-  @Expose()
-  @Transform(({ value }) => value.toISOString())
-  updatedAt: Date;
-
-  // Computed property
-  @Expose()
-  get summary(): string {
-    return `${this.title} - ${this.pages} trang`;
-  }
-
-  constructor(partial: Partial<BookEntity>) {
-    Object.assign(this, partial);
-  }
+```json
+{
+  "id": 1,
+  "title": "Clean Code",
+  "description": "A handbook...",
+  "pages": 464,
+  "genres": ["Programming"]
 }
 ```
 
-**Sử dụng ClassSerializerInterceptor:**
+Trong khi Endpoint B trả về:
 
-```typescript
-// src/main.ts - Global
-import { ClassSerializerInterceptor } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  app.useGlobalInterceptors(
-    new ClassSerializerInterceptor(app.get(Reflector))
-  );
-
-  await app.listen(3000);
-}
-
-// src/books/books.controller.ts
-import { ClassSerializerInterceptor, UseInterceptors } from '@nestjs/common';
-import { BookEntity } from './entities/book.entity';
-
-@Controller('books')
-export class BooksController {
-  constructor(private readonly booksService: BooksService) {}
-
-  @Get(':id')
-  @UseInterceptors(ClassSerializerInterceptor)
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    const book = this.booksService.findOne(id);
-    return new BookEntity(book);
-  }
-
-  @Get()
-  findAll(@Query() filterDto: FilterBooksDto) {
-    const result = this.booksService.findAll(filterDto);
-    return {
-      ...result,
-      data: result.data.map(book => new BookEntity(book)),
-    };
-  }
+```json
+{
+  "data": {
+    "id": 2,
+    "title": "The Pragmatic Programmer",
+    "description": "Your journey to mastery...",
+    "pages": 352,
+    "genres": ["Programming"]
+  },
+  "message": "Book retrieved successfully"
 }
 ```
 
----
+Điều này gây khó khăn cho client khi phải xử lý các định dạng khác nhau.
 
-## 4. Handling Requests và Responses
+=> Giải pháp là áp dụng một **response format chuẩn** cho tất cả các endpoints, bao gồm các thông tin như status code, message, data, và metadata khác nếu cần thiết.
 
-Tại sao cần quản lý requests và responses?
+### 4.2. Transform Response
 
-- Đảm bảo tính nhất quán trong cấu trúc dữ liệu trả về
-- Cải thiện trải nghiệm người dùng
-- Dễ dàng mở rộng và bảo trì mã nguồn
-
-### 4.1. Transform Response
+`Interceptor` trong NestJS cho phép bạn can thiệp vào quá trình xử lý request-response. Bạn có thể sử dụng interceptor để **transform** response từ controller trước khi gửi về client, đảm bảo rằng tất cả responses đều tuân theo một cấu trúc nhất quán.
 
 **Sử dụng Interceptor để transform response:**
 
@@ -1324,6 +1269,8 @@ export class TransformInterceptor<T>
 
 **Áp dụng global:**
 
+Giúp đảm bảo tất cả responses đều được transform.
+
 ```typescript
 // src/main.ts
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -1361,7 +1308,11 @@ app.useGlobalInterceptors(new TransformInterceptor());
 }
 ```
 
-### 4.2. Custom Response Format
+### 4.3. Custom Response Format
+
+Trên đây là format response chung. Tuy nhiên, trong nhiều trường hợp, bạn muốn có các định dạng response tùy chỉnh hơn theo rule riêng của dự án.
+
+Bạn có thể tạo các **Response DTOs** để định nghĩa cấu trúc response cho từng trường hợp cụ thể như:
 
 **Tạo Response DTO:**
 
@@ -1423,7 +1374,26 @@ export class ApiResponseDto<T> {
 }
 ```
 
-**Sử dụng trong Controller:**
+**BookService trả về dữ liệu:**
+
+```typescript
+// src/books/books.service.ts
+// Giả sử phương thức findAll trả về dữ liệu với pagination
+findAll(filterDto?: FilterBooksDto) {
+  // ...logic lọc và phân trang
+  return {
+    data: paginatedResult,
+    meta: {
+      page,
+      limit,
+      total: result.length,
+      totalPages: Math.ceil(result.length / limit),
+    },
+  };
+}
+```
+
+**Sử dụng trong Book Controller:**
 
 ```typescript
 // src/books/books.controller.ts
@@ -1529,6 +1499,94 @@ export class BooksController {
 ```
 
 ---
+
+### 4.4. Best Practices cho Response Handling
+
+- **Consistency is Key:** Đảm bảo tất cả endpoints trả về response theo cùng một cấu trúc.
+- **Use DTOs for Responses:** Sử dụng Data Transfer Objects (DTOs) để định nghĩa cấu trúc response rõ ràng và `chỉ trả về những fields cần thiết`.
+- **Leverage Interceptors:** Sử dụng interceptors để tự động transform responses.
+- **Include Metadata:** Cung cấp thông tin bổ sung như pagination, timestamps để hỗ trợ client.
+- **Handle Errors Gracefully:** Sử dụng exception filters để trả về lỗi một cách nhất quán và có cấu trúc.
+- **Only Expose Necessary Data:** Sử dụng serialization để `loại bỏ các fields nhạy cảm` khỏi response.
+
+Ví dụ khi bạn cần trả về thông tin chi tiết của một cuốn sách thì cần tạo một `Response DTO` riêng:
+
+```typescript
+// src/books/dto/book-detail-response.dto.ts
+import { Exclude, Expose, Transform } from 'class-transformer';
+@Exclude()
+export class BookDetailResponseDto {
+  @Expose()
+  id: number;
+
+  @Expose()
+  title: string;
+
+  @Expose()
+  description: string;
+
+  @Expose()
+  pages: number;
+
+  @Expose()
+  genres: string[];
+
+  @Expose()
+  isbn?: string;
+
+  @Expose()
+  publishedYear?: number;
+
+  @Expose()
+  @Transform(({ value }) => value.toISOString())
+  createdAt: Date;
+
+  @Expose()
+  @Transform(({ value }) => value.toISOString())
+  updatedAt: Date;
+
+  @Expose()
+  get summary(): string {
+    return `${this.title} - ${this.pages} trang`;
+  }
+
+  @Expose()
+  additionalInfo: string; // Thông tin chi tiết bổ sung
+
+  constructor(partial: Partial<BookDetailResponseDto>) {
+    Object.assign(this, partial);
+  }
+}
+```
+
+Vì trên UI bạn cần hiển thị thêm thông tin chi tiết về sách, nên bạn tạo một DTO riêng để phục vụ cho mục đích này.
+
+Còn trên UI về Quản lý Danh Sách Books bạn chỉ cần hiển thị các thông tin cơ bản, nên bạn sử dụng `Response DTO` riêng cho mục đích đó.
+
+```typescript
+// src/books/dto/book-list-response.dto.ts
+import { Exclude, Expose, Transform } from 'class-transformer';
+@Exclude()
+export class BookListResponseDto {
+  @Expose()
+  id: number;
+
+  @Expose()
+  title: string;
+
+  @Expose()
+  @Transform(({ value }) => value.toISOString())
+  createdAt: Date;
+
+  @Expose()
+  @Transform(({ value }) => value.toISOString())
+  updatedAt: Date;
+
+  constructor(partial: Partial<BookListResponseDto>) {
+    Object.assign(this, partial);
+  }
+}
+```
 
 chuyển qua bài 9 phần nội dung dưới đây.
 

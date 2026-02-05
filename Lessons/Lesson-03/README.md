@@ -1,11 +1,11 @@
 # Lesson 03 - Tạo một RESTful API với NestJS
 
 > Mục tiêu bài học:
+>
 > - Hiểu khái niệm RESTful API và các nguyên tắc thiết kế
 > - Tạo một RESTful API đơn giản với NestJS
 > - Sử dụng Modules, Controllers, Services trong NestJS
 > - Quản lý phiên bản API (API Versioning)
-
 
 ## 1. Giới thiệu về RESTful API
 
@@ -17,6 +17,7 @@
 
 **Ví dụ thực tế:**
 Hãy tưởng tượng bạn đang xây dựng một ứng dụng quản lý thư viện sách:
+
 - Bạn muốn xem danh sách sách → Gọi API GET `/books`
 - Bạn muốn thêm sách mới → Gọi API POST `/books`
 - Bạn muốn xem chi tiết một cuốn sách → Gọi API GET `/books/1`
@@ -26,6 +27,7 @@ Hãy tưởng tượng bạn đang xây dựng một ứng dụng quản lý th�
 ### 1.2 Nguyên tắc thiết kế RESTful API
 
 #### Nguyên tắc 1: Client-Server Architecture
+
 Client và Server tách biệt hoàn toàn, giao tiếp qua HTTP.
 
 ```
@@ -33,9 +35,11 @@ Client (React, Angular, Mobile App) ←→ Server (NestJS API)
 ```
 
 #### Nguyên tắc 2: Stateless (Không lưu trạng thái)
+
 Mỗi request từ client phải chứa đầy đủ thông tin cần thiết. Server không lưu trữ context của client giữa các request.
 
 **Ví dụ:**
+
 ```typescript
 // ❌ SAI - Server lưu trạng thái
 GET /next-page  // Server phải nhớ user đang ở trang nào
@@ -45,12 +49,15 @@ GET /books?page=2&limit=10  // Mỗi request độc lập
 ```
 
 #### Nguyên tắc 3: Cacheable
+
 Response có thể được cache để cải thiện hiệu năng.
 
 #### Nguyên tắc 4: Uniform Interface
+
 Giao diện thống nhất, dễ hiểu và dự đoán.
 
 #### Nguyên tắc 5: Layered System
+
 Hệ thống có thể có nhiều tầng (load balancer, cache, API gateway...).
 
 ### 1.3 HTTP Methods
@@ -101,17 +108,20 @@ DELETE /api/products/5
 ### 1.4 Status Codes phổ biến
 
 #### 2xx - Success (Thành công)
+
 - **200 OK**: Request thành công
 - **201 Created**: Tạo mới thành công (dùng cho POST)
 - **204 No Content**: Thành công nhưng không trả về dữ liệu (dùng cho DELETE)
 
 #### 4xx - Client Error (Lỗi từ phía client)
+
 - **400 Bad Request**: Dữ liệu gửi lên không hợp lệ
 - **401 Unauthorized**: Chưa đăng nhập
 - **403 Forbidden**: Không có quyền truy cập
 - **404 Not Found**: Không tìm thấy resource
 
 #### 5xx - Server Error (Lỗi từ phía server)
+
 - **500 Internal Server Error**: Lỗi server
 - **503 Service Unavailable**: Server tạm thời không khả dụng
 
@@ -164,6 +174,7 @@ POST   /api/deleteBook/1
 ```
 
 **Quy tắc đặt tên URL:**
+
 1. Sử dụng danh từ số nhiều: `/users`, `/products`
 2. Sử dụng dấu gạch ngang (-) thay vì dấu gạch dưới (_): `/product-categories`
 3. Viết thường: `/users` không phải `/Users`
@@ -179,6 +190,7 @@ POST   /api/deleteBook/1
 
 **Ví dụ thực tế:**
 Trong ứng dụng quản lý thư viện, bạn có thể có:
+
 - `BooksModule` - Quản lý sách
 - `UsersModule` - Quản lý người dùng
 - `AuthModule` - Xác thực
@@ -187,6 +199,7 @@ Trong ứng dụng quản lý thư viện, bạn có thể có:
 ### 2.2 Root Module vs Feature Module
 
 #### Root Module (App Module)
+
 Module gốc của ứng dụng, nơi import tất cả các module khác.
 
 ```typescript
@@ -207,6 +220,7 @@ export class AppModule {}
 ```
 
 #### Feature Module
+
 Module chức năng, tập trung vào một domain cụ thể.
 
 ```typescript
@@ -263,11 +277,11 @@ export class BooksModule {}
 ```
 
 **Giải thích:**
+
 - **imports**: Import `DatabaseModule` để sử dụng các service kết nối database
 - **controllers**: Đăng ký `BooksController` để xử lý các HTTP request liên quan đến books
 - **providers**: Đăng ký `BooksService` để NestJS có thể inject nó vào controller
 - **exports**: Export `BooksService` để module khác (ví dụ `OrdersModule`) có thể sử dụng
-
 
 ### 2.4 Tổ chức Modules trong dự án lớn
 
@@ -315,7 +329,6 @@ src/
 
 Xem chi tiết [NestJS Fundamentals](./NestJS-Fundamentals.md)
 
-
 ---
 
 ## 3. Controller
@@ -324,16 +337,14 @@ Xem chi tiết [NestJS Fundamentals](./NestJS-Fundamentals.md)
 
 **Controller** chịu trách nhiệm xử lý các **HTTP requests** từ client và trả về **HTTP responses**.
 
-
 ![Controller Diagram](./img/Controllers_1.png)
 
-
 **Nhiệm vụ của Controller:**
+
 - Nhận request từ client
 - Validate dữ liệu đầu vào (cơ bản)
 - Gọi service để xử lý business logic
 - Trả response về client
-
 
 Ví dụ:
 
@@ -414,6 +425,7 @@ export class BooksController {
 ```
 
 Bảng dưới đây liệt kê các decorators phổ biến để lấy dữ liệu từ request:
+
 | Decorator      | Mục đích                          |
 |----------------|-----------------------------------|
 | `@Param()`     | Lấy route parameters              |
@@ -428,7 +440,7 @@ Bảng dưới đây liệt kê các decorators phổ biến để lấy dữ li
 | `@Cookies()`   | Lấy cookies từ request            |
 | `@UploadedFile()` | Lấy file đã upload (khi dùng file upload) |
 | `@UploadedFiles()` | Lấy nhiều file đã upload          |
-| 
+|
 
 Xem tài liệu chính thức: [Request Objects](https://docs.nestjs.com/controllers#request-object)
 
@@ -509,7 +521,6 @@ export class BooksController {
 ```
 
 #### 3.2.5 Headers
-
 
 Sử dụng `@Headers()` để lấy các header từ request.
 
@@ -640,12 +651,14 @@ export class BooksController {
 ### 4.1 Service là gì?
 
 **Service** là nơi chứa **business logic** của ứng dụng. Service thực hiện các tác vụ như:
+
 - Xử lý dữ liệu
 - Gọi database
 - Gọi API bên ngoài
 - Tính toán, validate phức tạp
 
 **Tại sao tách Service ra khỏi Controller?**
+
 - **Separation of Concerns**: Controller lo việc HTTP, Service lo business logic
 - **Reusability**: Service có thể được sử dụng bởi nhiều controller
 - **Testability**: Dễ dàng test service độc lập
@@ -792,6 +805,7 @@ export class BooksService {
 **Provider** là một khái niệm rộng hơn trong NestJS. Bất kỳ class nào có thể được **inject** vào class khác đều là provider.
 
 **Các loại Provider phổ biến:**
+
 - Service
 - Repository
 - Factory
@@ -849,15 +863,18 @@ export class BooksController {
 ```
 
 **Giải thích:**
+
 ```typescript
 constructor(private readonly booksService: BooksService) {}
 ```
+
 - `private`: Tạo property private cho class
 - `readonly`: Không thể thay đổi sau khi khởi tạo
 - `booksService`: Tên biến
 - `BooksService`: Type (NestJS dùng type này để inject đúng service)
 
 **Tương đương với:**
+
 ```typescript
 private readonly booksService: BooksService;
 
@@ -956,6 +973,7 @@ GET /api/v2/users/1
 ```
 
 **Lợi ích của versioning:**
+
 - Client cũ vẫn hoạt động bình thường với v1
 - Client mới có thể sử dụng v2 với tính năng mới
 - Có thời gian để migrate dần dần
@@ -1178,8 +1196,10 @@ app.enableVersioning({
 
 #### 1. Đặt version ở controller level
 
+- Cách 1: Đặt version cho từng method
+
 ```typescript
-// Cách 1: Đặt version cho từng method
+//src/books/books.controller.ts
 @Controller('books')
 export class BooksController {
   @Version('1')
@@ -1190,14 +1210,18 @@ export class BooksController {
   @Get()
   findAllV2() {}
 }
+```
 
-// Cách 2: Tạo controller riêng cho mỗi version (Recommended)
+- Cách 2: Tạo controller riêng cho mỗi version (Recommended)
+
+```typescript
+// src/books/controllers/books.controller.v1.ts
 @Controller({ path: 'books', version: '1' })
 export class BooksControllerV1 {
   @Get()
   findAll() {}
 }
-
+// src/books/controllers/books.controller.v2.ts
 @Controller({ path: 'books', version: '2' })
 export class BooksControllerV2 {
   @Get()
