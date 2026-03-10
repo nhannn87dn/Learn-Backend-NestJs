@@ -2,7 +2,7 @@
 
 ## Phần 1: Pre-Deployment Preparation
 
-### 1.1 Security Checklist ← MỞ RỘNG
+### 1.1 Security Checklist 
 
 - Environment variables security
 - CORS, Helmet, Rate limiting
@@ -10,7 +10,7 @@
 - Dependency vulnerability scan
 - HTTPS/SSL
 
-### 1.2 Performance Checklist ← MỚI
+### 1.2 Performance Checklist
 
 - Database optimization
 - Caching strategy
@@ -18,14 +18,14 @@
 - Load testing
 - Memory optimization
 
-### 1.3 Code Quality ← MỞ RỘNG
+### 1.3 Code Quality 
 
 - Code review
 - Linting & Formatting
 - TypeScript strict mode
 - Dead code removal
 
-### 1.4 Testing ← MỞ RỘNG
+### 1.4 Testing 
 
 - Unit tests (coverage ≥80%)
 - Integration tests
@@ -33,21 +33,21 @@
 - Load testing
 - Security testing
 
-### 1.5 Database Preparation ← MỚI
+### 1.5 Database Preparation
 
 - Migration scripts
 - Backup strategy
 - Indexes optimization
 - Connection pooling
 
-### 1.6 Monitoring & Logging ← MỞ RỘNG
+### 1.6 Monitoring & Logging 
 
 - Structured logging
 - Error tracking (Sentry)
 - APM tools
 - Alert configuration
 
-### 1.7 Documentation ← MỚI
+### 1.7 Documentation
 
 - API documentation
 - Deployment guide
@@ -56,13 +56,13 @@
 
 ## Phần 2: Build & Configuration
 
-### 2.1 Environment Configuration ← MỚI
+### 2.1 Environment Configuration
 
 - Dev vs Staging vs Production
 - Secrets management
 - Configuration validation
 
-### 2.2 Production Build ← MỚI
+### 2.2 Production Build
 
 - Build optimization
 - Source maps
@@ -71,21 +71,21 @@
 
 ## Phần 3: Process Management
 
-### 3.1 PM2 ← MỞ RỘNG
+### 3.1 PM2 
 
 - Cluster mode
 - Ecosystem file
 - Auto-restart
 - PM2 monitoring
 
-### 3.2 Alternatives ← MỚI
+### 3.2 Alternatives
 
 - systemd
 - supervisord
 
 ## Phần 4: Containerization
 
-### 4.1 Docker ← MỞ RỘNG từ "Docker basic"
+### 4.1 Docker  từ "Docker basic"
 
 - Multi-stage Dockerfile
 - Best practices
@@ -94,7 +94,7 @@
 - Security scanning
 - Health checks
 
-## Phần 5: Deployment Strategies ← MỚI
+## Phần 5: Deployment Strategies
 
 - Blue-Green deployment
 - Rolling deployment
@@ -104,7 +104,7 @@
 
 ## Phần 6: Deployment Platforms
 
-### 6.1 VPS Deployment ← MỞ RỘNG
+### 6.1 VPS Deployment 
 
 - Server selection & setup
 - SSH hardening
@@ -113,7 +113,7 @@
 - Firewall configuration
 - Automated deployment
 
-### 6.2 PaaS Deployment ← MỞ RỘNG
+### 6.2 PaaS Deployment 
 
 - Heroku
 - Render
@@ -124,7 +124,7 @@
 - Azure App Service
 - Pricing comparison
 
-### 6.3 Container Orchestration ← MỞ RỘNG
+### 6.3 Container Orchestration 
 
 **Kubernetes:**
 
@@ -141,14 +141,14 @@
 - Service deployment
 - Stack files
 
-## Phần 7: Database Deployment ← MỚI
+## Phần 7: Database Deployment
 
 - Managed databases (RDS, MongoDB Atlas)
 - Migration in production
 - Backup automation
 - Replication setup
 
-## Phần 8: CI/CD Pipeline ← MỚI
+## Phần 8: CI/CD Pipeline
 
 - GitHub Actions
 - GitLab CI/CD
@@ -157,7 +157,7 @@
 - Environment-specific pipelines
 - Deployment gates
 
-## Phần 9: Monitoring & Observability ← MỞ RỘNG
+## Phần 9: Monitoring & Observability 
 
 - Application monitoring
 - Infrastructure monitoring
