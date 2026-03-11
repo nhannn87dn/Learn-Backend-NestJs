@@ -13,6 +13,8 @@
 
 **REST** (Representational State Transfer) là một phong cách kiến trúc phần mềm cho việc thiết kế các dịch vụ web. REST không phải là một giao thức hay tiêu chuẩn, mà là một tập hợp các nguyên tắc thiết kế.
 
+### 1.2 RESTful API ?
+
 **RESTful API** là một API được thiết kế theo các nguyên tắc của REST, cho phép các ứng dụng client giao tiếp với server thông qua giao thức HTTP.
 
 **Ví dụ thực tế:**
@@ -24,7 +26,41 @@ Hãy tưởng tượng bạn đang xây dựng một ứng dụng quản lý th�
 - Bạn muốn cập nhật thông tin sách → Gọi API PUT `/books/1`
 - Bạn muốn xóa sách → Gọi API DELETE `/books/1`
 
-### 1.2 Nguyên tắc thiết kế RESTful API
+
+### 1.3 Resource ?
+
+Trong REST, mọi thứ được xem là **resource** (tài nguyên), ví dụ:
+
+* users
+* products
+* categories
+* orders
+
+
+**Mỗi resource sẽ có **URL riêng****
+
+Ví dụ:
+
+```
+GET /api/products
+GET /api/products/10
+POST /api/products
+PUT /api/products/10
+DELETE /api/products/10
+```
+
+**Các HTTP Method thường dùng**
+
+| Method | Ý nghĩa           | Ví dụ                  |
+| ------ | ----------------- | ---------------------- |
+| GET    | Lấy dữ liệu       | Lấy danh sách sản phẩm |
+| POST   | Tạo mới           | Tạo sản phẩm mới       |
+| PUT    | Cập nhật toàn bộ  | Update sản phẩm        |
+| PATCH  | Cập nhật một phần | Update giá sản phẩm    |
+| DELETE | Xóa               | Xóa sản phẩm           |
+
+
+### 1.4 Nguyên tắc thiết kế RESTful API
 
 #### Nguyên tắc 1: Client-Server Architecture
 
@@ -60,7 +96,7 @@ Giao diện thống nhất, dễ hiểu và dự đoán.
 
 Hệ thống có thể có nhiều tầng (load balancer, cache, API gateway...).
 
-### 1.3 HTTP Methods
+### 1.5 HTTP Methods
 
 | Method | Mục đích | Ví dụ |
 |--------|----------|-------|
@@ -105,7 +141,7 @@ Body: {
 DELETE /api/products/5
 ```
 
-### 1.4 Status Codes phổ biến
+### 1.6 Status Codes phổ biến
 
 #### 2xx - Success (Thành công)
 
@@ -153,7 +189,7 @@ Response: 400 Bad Request
 }
 ```
 
-### 1.5 Resource-based URL
+### 1.7 Resource-based URL
 
 URL nên đại diện cho **danh từ (resource)**, không phải động từ (action).
 

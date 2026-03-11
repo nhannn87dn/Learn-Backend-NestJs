@@ -16,8 +16,6 @@
   * type, interface
   * class, access modifier
   * generics
-* RESTful API là gì
-* HTTP, Request / Response, Status Code
 
 ---
 
@@ -38,6 +36,15 @@
   * AppModule
   * Bootstrap là gì?
   * Core Concepts Overview
+* Config & Environment
+  * Cấu hình với ConfigModule
+  * Sử dụng biến môi trường (.env)
+  * Cấu hình theo môi trường (development, production)
+  * Validation cho biến môi trường
+* Chuẩn hóa code với Prettier & ESLint hoặc Biome
+  * Tại sao cần chuẩn hóa code?
+  * Cài đặt Prettier & ESLint hoặc Biome
+  * Cấu hình Prettier & ESLint hoặc Biome
 
 ---
 
@@ -59,7 +66,6 @@
   * Tại sao cần versioning cho API?
   * Cách cấu hình versioning trong NestJS
   * Các chiến lược versioning: URI Versioning, Header Versioning
-
 
 ---
 
@@ -181,7 +187,7 @@
 
 ---
 
-## Lesson 11 - NoSQL with MongoDB 
+## Lesson 11 - NoSQL with MongoDB
 
 * Giới thiệu NoSQL và MongoDB
 * Cài đặt MongoDB và kết nối với NestJS
@@ -207,7 +213,6 @@
 
 ---
 
-
 ## Lesson 13 - Upload & Streaming Files & Send Email NestJS
 
 * Upload file với Multer
@@ -218,7 +223,6 @@
 * Gửi email với NestJS
 
 ---
-
 
 ## Lesson 14 - Optimization & Caching with Redis
 
@@ -231,7 +235,6 @@
 
 ---
 
-
 ## Lesson 15 - Documentation with Swagger
 
 * Tại sao cần tài liệu API?
@@ -242,7 +245,6 @@
 * Bảo mật tài liệu API
 
 ---
-
 
 ## Lesson 16 - Testing in NestJS
 
