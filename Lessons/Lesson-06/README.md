@@ -49,6 +49,16 @@ export class User {
 }
 ```
 
+Entity `User` đại diện cho bảng `users`:
+
+| Column   | Type        | Nullable | Key | Description |
+|----------|-------------|----------|-----|-------------|
+| id       | INT         | NO       | PK  | ID người dùng (Primary Key, Auto Increment) |
+| email    | VARCHAR(255)| NO       |     | Email đăng nhập của người dùng |
+| password | VARCHAR(255)| NO       |     | Mật khẩu đã được hash |
+| profileId| INT         | YES      | FK  | Khóa ngoại tham chiếu tới bảng `profiles` |
+
+
 ```typescript
 // profile.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne } from 'typeorm';
@@ -73,6 +83,17 @@ export class Profile {
   user: User;
 }
 ```
+
+
+Entity `Profile` đại diện cho bảng `profiles` 
+
+| Column     | Type         | Nullable | Key | Description |
+|-------------|--------------|----------|-----|-------------|
+| id          | INT          | NO       | PK  | ID của profile (Primary Key, Auto Increment) |
+| firstName   | VARCHAR(255) | NO       |     | Tên của người dùng |
+| lastName    | VARCHAR(255) | NO       |     | Họ của người dùng |
+| avatar      | VARCHAR(255) | YES      |     | URL hoặc đường dẫn ảnh đại diện |
+
 
 **Sử dụng:**
 
@@ -127,6 +148,15 @@ export class User {
 }
 ```
 
+Entity `User` đại diện cho bảng `users`:
+
+| Column | Type         | Nullable | Key | Description |
+|------|--------------|----------|-----|-------------|
+| id   | INT          | NO       | PK  | ID người dùng (Primary Key, Auto Increment) |
+| email| VARCHAR(255) | NO       |     | Email của người dùng |
+
+
+
 ```typescript
 // post.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
@@ -155,6 +185,15 @@ export class Post {
   authorId: number; // Có thể dùng trực tiếp ID
 }
 ```
+
+Entity `Post` đại diện cho bảng `posts`:
+
+| Column     | Type         | Nullable | Key | Description |
+|-------------|--------------|----------|-----|-------------|
+| id          | INT          | NO       | PK  | ID bài viết (Primary Key, Auto Increment) |
+| title       | VARCHAR(255) | NO       |     | Tiêu đề bài viết |
+| content     | TEXT         | NO       |     | Nội dung bài viết |
+| author_id   | INT          | NO       | FK  | ID của user là tác giả bài viết |
 
 **Sử dụng:**
 
@@ -233,6 +272,14 @@ export class Student {
 }
 ```
 
+Bảng `students` lưu thông tin sinh viên trong hệ thống.
+
+| Column | Type         | Nullable | Key | Description |
+|------|--------------|----------|-----|-------------|
+| id   | INT          | NO       | PK  | ID sinh viên (Primary Key, Auto Increment) |
+| name | VARCHAR(255) | NO       |     | Tên sinh viên |
+| email| VARCHAR(255) | NO       |     | Email của sinh viên |
+
 ```typescript
 // course.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, ManyToMany } from 'typeorm';
@@ -254,6 +301,15 @@ export class Course {
   students: Student[];
 }
 ```
+
+Bảng `courses` lưu thông tin các khóa học trong hệ thống.
+
+| Column  | Type         | Nullable | Key | Description |
+|---------|--------------|----------|-----|-------------|
+| id      | INT          | NO       | PK  | ID khóa học (Primary Key, Auto Increment) |
+| name    | VARCHAR(255) | NO       |     | Tên khóa học |
+| credits | INT          | NO       |     | Số tín chỉ của khóa học |
+
 
 **Sử dụng:**
 
@@ -332,6 +388,18 @@ export class Category {
 }
 ```
 
+Bảng `categories` lưu thông tin danh mục và hỗ trợ cấu trúc **phân cấp (hierarchical / tree structure)**.
+
+| Column     | Type         | Nullable | Key | Description |
+|-------------|--------------|----------|-----|-------------|
+| id          | INT          | NO       | PK  | ID danh mục (Primary Key, Auto Increment) |
+| name        | VARCHAR(255) | NO       |     | Tên danh mục |
+| parent_id   | INT          | YES      | FK  | ID danh mục cha |
+
+---
+
+Hoặc với Employee:
+
 ```typescript
 // employee.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany } from 'typeorm';
@@ -355,6 +423,14 @@ export class Employee {
   subordinates: Employee[];
 }
 ```
+
+Bảng `employees` lưu thông tin nhân viên và cấu trúc quản lý trong tổ chức.
+
+| Column      | Type         | Nullable | Key | Description |
+|-------------|--------------|----------|-----|-------------|
+| id          | INT          | NO       | PK  | ID nhân viên (Primary Key, Auto Increment) |
+| name        | VARCHAR(255) | NO       |     | Tên nhân viên |
+| manager_id  | INT          | YES      | FK  | ID của manager (cũng là một employee) |
 
 **Sử dụng:**
 
@@ -402,6 +478,8 @@ async getCategoryTree() {
 ---
 
 ### 1.5. Cascade, Eager, Lazy Loading
+
+Tìm hiểu một số cấu hình quan trọng khi làm việc với relations trong TypeORM.
 
 #### **Cascade Options**
 
@@ -547,6 +625,22 @@ export class Post {
   author: User;
 }
 ```
+
+Tương ứng ta có:
+
+Bảng `users` lưu thông tin người dùng (tác giả bài viết).
+
+| Column | Type | Nullable | Key | Description |
+|------|------|----------|-----|-------------|
+| id   | INT  | NO       | PK  | ID người dùng (Primary Key, Auto Increment) |
+
+Bảng `posts` lưu thông tin bài viết.
+
+| Column    | Type | Nullable | Key | Description |
+|-----------|------|----------|-----|-------------|
+| id        | INT  | NO       | PK  | ID bài viết |
+| author_id | INT  | YES      | FK  | ID của user là tác giả bài viết |
+
 
 **Nếu không dùng @JoinColumn:** TypeORM tự tạo tên cột dạng `authorId`.
 
@@ -952,6 +1046,7 @@ async getCursorPaginatedUsers(
 #### Giải pháp áp dụng Cursor-based Pagination có thể phân trang mượt mà cho các API danh sách lớn.
 
 ```typescript
+//TODO: Implement cursor-based pagination for products
 ```
 
 ---
@@ -3192,31 +3287,3 @@ async createUser(data: CreateUserDto) {
   return await this.userRepository.save(user);
 }
 ```
-
----
-
-## Tổng kết
-
-Bài học này đã cover các chủ đề nâng cao của TypeORM:
-
-1. **Relations:** One-to-One, One-to-Many, Many-to-Many, Self-referencing
-2. **Query nâng cao:** FindOptions, Pagination, Filtering, Aggregation
-3. **Query Builder:** CRUD, JOINs, Subqueries, Conditional queries
-4. **Transactions:** ACID, QueryRunner, Isolation levels
-5. **Raw Query:** Khi nào dùng, Security
-6. **Soft Delete & Auditing:** Implementation, Best practices
-7. **Performance:** Indexes, EXPLAIN, N+1 problem
-8. **Stored Procedures:** Khi nào dùng, Cách gọi
-9. **Patterns:** Custom Repositories, Specifications, Testing
-
-**Best Practices tổng quan:**
-- Dùng transactions cho operations liên quan
-- Luôn dùng parameter binding (tránh SQL injection)
-- Optimize queries với indexes
-- Avoid N+1 problem
-- Handle errors properly
-- Test kỹ database layer
-- Document complex queries
-- Monitor performance
-
-Chúc bạn học tốt! 🚀

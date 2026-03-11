@@ -1,4 +1,4 @@
-# Lesson 09 - Authentication & Authorization (Chi Tiết Cho Người Mới)
+# Lesson 09 - Authentication & Authorization
 
 ## 1. Tổng quan về Authentication & Authorization
 
