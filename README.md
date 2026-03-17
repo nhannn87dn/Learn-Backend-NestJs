@@ -179,6 +179,10 @@
   * Many-to-Many
   * Cascade, eager, lazy
 
+* Seeding Database với TypeORM
+  * Seeding là gì?
+  * Tạo và chạy Seeder với TypeORM
+
 * Truy vấn nâng cao
   * Relations
   * Pagination
@@ -194,9 +198,7 @@
 * Migrations
   * Migrations là gì?
   * Tạo và chạy Migrations với TypeORM
-* Seeding Database với TypeORM
-  * Seeding là gì?
-  * Tạo và chạy Seeder với TypeORM
+
 
 ---
 

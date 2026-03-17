@@ -29,3 +29,7 @@
 * Chỉnh sửa dữ liệu
 * Loading & Error state
 * Alert / Notification
+
+## Nhất quán cấu trúc Response từ API
+
+Xem chi tiết tại [Response Structure](./response.md)

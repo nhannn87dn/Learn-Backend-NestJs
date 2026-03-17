@@ -776,6 +776,7 @@ export class Post {
 
 ---
 
+
 ## 2. Truy vấn nâng cao
 
 ### 2.1. FindOptions và Where Operators
@@ -2754,536 +2755,540 @@ async findUsers() {
 
 ---
 
-## 8. SQL Stored Procedures
+## 8. Migration with TypeORM
 
-### 8.1. Khi nào dùng Stored Procedures
+### 8.1. Migration là gì? Tại sao cần?
 
-**Nên dùng khi:**
-- Complex business logic trong database
-- Batch operations với performance cao
-- Reuse logic across applications
-- Security (giới hạn direct table access)
+**Khái niệm:** Migration là một cách để quản lý và version hóa schema database. Nó cho phép bạn tạo, cập nhật, hoặc xóa bảng, cột, indexes,... một cách có kiểm soát.  Thay vì để TypeORM tự `synchronize`, bạn viết từng bước thay đổi rõ ràng, có thể rollback, và có thể tái tạo ở bất kỳ môi trường nào.
 
-**Không nên dùng khi:**
-- Logic đơn giản
-- Cần deploy thường xuyên (SPs khó version control)
-- Team không familiar với SQL
+**Tại sao cần Migration:**
 
----
+- Quản lý schema changes theo version
+- Dễ dàng deploy schema changes lên production
+- Rollback khi có lỗi
+- Đồng bộ schema giữa các môi trường (dev, staging, prod)
+- Tích hợp với CI/CD pipelines
 
-### 8.2. Cách gọi từ TypeORM
+### 8.2. Cấu hình sử dụng Migration
 
-**Tạo stored procedure (Postgres):**
-
-```sql
-CREATE OR REPLACE FUNCTION get_user_stats(user_id INT)
-RETURNS TABLE(
-  total_posts INT,
-  total_comments INT,
-  total_likes INT
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    COUNT(DISTINCT p.id)::INT as total_posts,
-    COUNT(DISTINCT c.id)::INT as total_comments,
-    COUNT(DISTINCT l.id)::INT as total_likes
-  FROM users u
-  LEFT JOIN posts p ON p.author_id = u.id
-  LEFT JOIN comments c ON c.user_id = u.id
-  LEFT JOIN likes l ON l.user_id = u.id
-  WHERE u.id = user_id;
-END;
-$$ LANGUAGE plpgsql;
-```
-
-**Gọi từ TypeORM:**
+**Bước 1: Cấu hình AppModule**
 
 ```typescript
-async getUserStats(userId: number) {
-  const result = await this.dataSource.query(
-    'SELECT * FROM get_user_stats($1)',
-    [userId]
-  );
-
-  return result[0];
-}
-```
-
-**Stored procedure với multiple results:**
-
-```sql
-CREATE OR REPLACE FUNCTION process_order(order_id INT)
-RETURNS TABLE(
-  success BOOLEAN,
-  message TEXT,
-  new_balance DECIMAL
-) AS $$
-DECLARE
-  order_amount DECIMAL;
-  user_id INT;
-  current_balance DECIMAL;
-BEGIN
-  -- Get order info
-  SELECT o.amount, o.user_id INTO order_amount, user_id
-  FROM orders o WHERE o.id = order_id;
-
-  -- Get user balance
-  SELECT balance INTO current_balance FROM users WHERE id = user_id;
-
-  -- Check balance
-  IF current_balance < order_amount THEN
-    RETURN QUERY SELECT FALSE, 'Insufficient balance'::TEXT, current_balance;
-    RETURN;
-  END IF;
-
-  -- Process order
-  UPDATE users SET balance = balance - order_amount WHERE id = user_id;
-  UPDATE orders SET status = 'completed' WHERE id = order_id;
-
-  -- Return success
-  RETURN QUERY SELECT TRUE, 'Order processed'::TEXT, (current_balance - order_amount);
-END;
-$$ LANGUAGE plpgsql;
-```
-
-```typescript
-async processOrder(orderId: number) {
-  const result = await this.dataSource.query(
-    'SELECT * FROM process_order($1)',
-    [orderId]
-  );
-
-  const { success, message, new_balance } = result[0];
-
-  if (!success) {
-    throw new BadRequestException(message);
-  }
-
-  return { message, newBalance: new_balance };
-}
-```
-
----
-
-## 9. Advanced Patterns & Best Practices
-
-### 9.1. Custom Repositories
-
-**Tạo custom repository với business logic:**
-
-```typescript
-// user.repository.ts
-import { Repository } from 'typeorm';
-import { User } from './user.entity';
-
-export class UserRepository extends Repository<User> {
-  // Custom method
-  async findByEmail(email: string): Promise<User | null> {
-    return await this.findOne({
-      where: { email: email.toLowerCase() },
-      relations: ['profile']
-    });
-  }
-
-  async findActiveUsers(): Promise<User[]> {
-    return await this.createQueryBuilder('user')
-      .where('user.isActive = :isActive', { isActive: true })
-      .andWhere('user.deletedAt IS NULL')
-      .orderBy('user.createdAt', 'DESC')
-      .getMany();
-  }
-
-  async getUserStats(userId: number) {
-    return await this.createQueryBuilder('user')
-      .leftJoinAndSelect('user.posts', 'post')
-      .leftJoinAndSelect('user.comments', 'comment')
-      .where('user.id = :userId', { userId })
-      .loadRelationCountAndMap('user.postCount', 'user.posts')
-      .loadRelationCountAndMap('user.commentCount', 'user.comments')
-      .getOne();
-  }
-
-  async searchUsers(query: string, limit: number = 10) {
-    return await this.createQueryBuilder('user')
-      .where('user.email ILIKE :query OR user.name ILIKE :query', {
-        query: `%${query}%`
-      })
-      .take(limit)
-      .getMany();
-  }
-}
-```
-
-**Register custom repository:**
-
-```typescript
-// user.module.ts
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './user.entity';
-import { UserRepository } from './user.repository';
-import { UserService } from './user.service';
-
-@Module({
-  imports: [
-    TypeOrmModule.forFeature([User]),
-  ],
-  providers: [
-    UserService,
-    {
-      provide: UserRepository,
-      useFactory: (dataSource: DataSource) => {
-        return dataSource.getRepository(User).extend(UserRepository);
-      },
-      inject: [DataSource],
-    },
-  ],
-  exports: [UserService],
-})
-export class UserModule {}
-```
-
-**Sử dụng:**
-
-```typescript
-@Injectable()
-export class UserService {
-  constructor(
-    private userRepository: UserRepository,
-  ) {}
-
-  async findByEmail(email: string) {
-    return await this.userRepository.findByEmail(email);
-  }
-
-  async getActiveUsers() {
-    return await this.userRepository.findActiveUsers();
-  }
-}
-```
-
----
-
-### 9.2. Specification Pattern
-
-**Khái niệm:** Tách business rules thành các specifications có thể tái sử dụng và kết hợp.
-
-```typescript
-// specifications/user.specifications.ts
-import { SelectQueryBuilder } from 'typeorm';
-import { User } from '../entities/user.entity';
-
-export class UserSpecifications {
-  static isActive() {
-    return (qb: SelectQueryBuilder<User>) => {
-      qb.andWhere('user.isActive = :isActive', { isActive: true });
-    };
-  }
-
-  static hasRole(role: string) {
-    return (qb: SelectQueryBuilder<User>) => {
-      qb.andWhere('user.role = :role', { role });
-    };
-  }
-
-  static emailContains(search: string) {
-    return (qb: SelectQueryBuilder<User>) => {
-      qb.andWhere('user.email LIKE :email', { email: `%${search}%` });
-    };
-  }
-
-  static createdAfter(date: Date) {
-    return (qb: SelectQueryBuilder<User>) => {
-      qb.andWhere('user.createdAt > :date', { date });
-    };
-  }
-
-  static olderThan(age: number) {
-    return (qb: SelectQueryBuilder<User>) => {
-      qb.andWhere('user.age > :age', { age });
-    };
-  }
-}
-```
-
-**Sử dụng:**
-
-```typescript
-// user.repository.ts
-export class UserRepository extends Repository<User> {
-  async findBySpecifications(...specs: Array<(qb: SelectQueryBuilder<User>) => void>) {
-    const qb = this.createQueryBuilder('user');
-
-    // Apply all specifications
-    specs.forEach(spec => spec(qb));
-
-    return await qb.getMany();
-  }
-}
-
-// user.service.ts
-async getAdminUsers(emailSearch?: string) {
-  const specs = [
-    UserSpecifications.isActive(),
-    UserSpecifications.hasRole('admin'),
-  ];
-
-  if (emailSearch) {
-    specs.push(UserSpecifications.emailContains(emailSearch));
-  }
-
-  return await this.userRepository.findBySpecifications(...specs);
-}
-
-async getRecentSeniors() {
-  return await this.userRepository.findBySpecifications(
-    UserSpecifications.isActive(),
-    UserSpecifications.olderThan(60),
-    UserSpecifications.createdAfter(new Date('2024-01-01'))
-  );
-}
-```
-
-**Ưu điểm:**
-- Reusable business rules
-- Easy to test
-- Clean, readable code
-- Kết hợp specifications linh hoạt
-
----
-
-### 9.3. Testing Strategies
-
-#### **Unit Testing Repositories**
-
-```typescript
-// user.repository.spec.ts
-import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from './user.entity';
-import { UserRepository } from './user.repository';
-
-describe('UserRepository', () => {
-  let repository: UserRepository;
-  let mockRepository: Repository<User>;
-
-  beforeEach(async () => {
-    const module = await Test.createTestingModule({
-      providers: [
-        UserRepository,
-        {
-          provide: getRepositoryToken(User),
-          useClass: Repository,
-        },
-      ],
-    }).compile();
-
-    repository = module.get<UserRepository>(UserRepository);
-    mockRepository = module.get<Repository<User>>(getRepositoryToken(User));
-  });
-
-  describe('findByEmail', () => {
-    it('should find user by email', async () => {
-      const mockUser = { id: 1, email: 'test@example.com', name: 'Test' };
-      
-      jest.spyOn(mockRepository, 'findOne').mockResolvedValue(mockUser as User);
-
-      const result = await repository.findByEmail('test@example.com');
-
-      expect(result).toEqual(mockUser);
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { email: 'test@example.com' },
-        relations: ['profile'],
-      });
-    });
-  });
+TypeOrmModule.forRoot({
+  // ...
+  synchronize: false, // KHÔNG BAO GIỜ dùng synchronize: true ở production
+  migrations: [__dirname + '/migrations/*.ts'], // Đường dẫn đến migration files
+  migrationsRun: false, // Tự động chạy migration khi app start (optional)
 });
 ```
 
-#### **Integration Testing với Test Database**
+**Bước 2: Tạo `dataSource.ts` bắt buộc để chạy CLI**
+
+TypeORM CLI cần một file DataSource riêng, không phụ thuộc vào NestJS container
 
 ```typescript
-// user.service.integration.spec.ts
-import { Test } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { User } from './user.entity';
-import { UserService } from './user.service';
 
-describe('UserService Integration', () => {
-  let service: UserService;
-  let dataSource: DataSource;
-
-  beforeAll(async () => {
-    const module = await Test.createTestingModule({
-      imports: [
-        TypeOrmModule.forRoot({
-          type: 'sqlite',
-          database: ':memory:',
-          entities: [User],
-          synchronize: true,
-        }),
-        TypeOrmModule.forFeature([User]),
-      ],
-      providers: [UserService],
-    }).compile();
-
-    service = module.get<UserService>(UserService);
-    dataSource = module.get<DataSource>(DataSource);
-  });
-
-  afterAll(async () => {
-    await dataSource.destroy();
-  });
-
-  beforeEach(async () => {
-    // Clean database before each test
-    await dataSource.getRepository(User).clear();
-  });
-
-  it('should create and find user', async () => {
-    const userData = {
-      email: 'test@example.com',
-      name: 'Test User',
-      password: 'password123',
-    };
-
-    const created = await service.create(userData);
-    expect(created.id).toBeDefined();
-
-    const found = await service.findByEmail(userData.email);
-    expect(found).toBeDefined();
-    expect(found.email).toBe(userData.email);
-  });
+export const AppDataSource = new DataSource({
+  type: 'postgres',
+  host: 'localhost',
+  port: 5432,
+  username: 'test',
+  password: 'test',
+  database: 'test_db',
+  entities: ['src/**/*.entity.ts'],
+  migrations: ['src/databases/migrations/*.ts'],
+  synchronize: false,
 });
 ```
 
----
+**Bước 3: Thêm script vào `package.json`**
 
-### 9.4. Common Pitfalls
-
-#### **1. Forgetting to await**
-
-```typescript
-// ❌ BAD: Missing await
-const user = this.userRepository.save(newUser); // Returns Promise!
-console.log(user.id); // undefined
-
-// ✅ GOOD
-const user = await this.userRepository.save(newUser);
-console.log(user.id); // Correct ID
-```
-
-#### **2. N+1 queries**
-
-```typescript
-// ❌ BAD: N+1 problem
-const users = await this.userRepository.find();
-for (const user of users) {
-  user.posts = await this.postRepository.find({ where: { authorId: user.id } });
-}
-
-// ✅ GOOD: Use relations
-const users = await this.userRepository.find({ relations: ['posts'] });
-```
-
-#### **3. Not using transactions for related operations**
-
-```typescript
-// ❌ BAD: No transaction
-const user = await this.userRepository.save(newUser);
-const profile = await this.profileRepository.save(newProfile);
-// If profile save fails, user is already saved!
-
-// ✅ GOOD: Use transaction
-await this.dataSource.transaction(async (manager) => {
-  const user = await manager.save(User, newUser);
-  const profile = await manager.save(Profile, { ...newProfile, userId: user.id });
-});
-```
-
-#### **4. Mutating entities without saving**
-
-```typescript
-// ❌ BAD: Changes not saved
-const user = await this.userRepository.findOne({ where: { id: 1 } });
-user.name = 'New Name'; // Just mutates in memory!
-
-// ✅ GOOD: Save changes
-const user = await this.userRepository.findOne({ where: { id: 1 } });
-user.name = 'New Name';
-await this.userRepository.save(user);
-```
-
-#### **5. Not handling unique constraint errors**
-
-```typescript
-// ❌ BAD: No error handling
-async createUser(email: string) {
-  const user = this.userRepository.create({ email });
-  return await this.userRepository.save(user);
-  // Throws generic error if email exists
-}
-
-// ✅ GOOD: Handle constraint errors
-async createUser(email: string) {
-  try {
-    const user = this.userRepository.create({ email });
-    return await this.userRepository.save(user);
-  } catch (error) {
-    if (error.code === '23505') { // Postgres unique violation
-      throw new ConflictException('Email already exists');
-    }
-    throw error;
+```json
+{
+  "scripts": {
+    "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts",
+    "migration:generate": "npm run typeorm -- migration:generate",
+    "migration:run":      "npm run typeorm -- migration:run",
+    "migration:revert":   "npm run typeorm -- migration:revert",
+    "migration:show":     "npm run typeorm -- migration:show",
+    "migration:create":   "npm run typeorm -- migration:create"
   }
 }
 ```
 
-#### **6. Using cascade delete inappropriately**
+### 8.3 Workflow tổng quan
+
+Trước khi đi vào chi tiết từng lệnh, đây là luồng làm việc chuẩn:
+
+![Migration Workflow](./img/migration_workflow.png)
+---
+
+### 8.4. Tạo Migration
+
+#### 8.4.1. Tạo migration tự động với `migration:generate` (Khuyến nghị)
+
+TypeORM so sánh entity hiện tại với database thực tế rồi tạo file migration:
+
+```bash
+npm run migration:generate -- src/migrations/CreateUserTable
+```
+
+Kết quả: file `src/migrations/1700000000000-CreateUserTable.ts`
+
+> **Lưu ý:** Bạn phải có kết nối database thật khi chạy `generate`. TypeORM cần đọc schema hiện tại để biết cần thay đổi gì.
+
+### 8.4.2. Tạo file trống thủ công
+
+Dùng khi cần viết logic phức tạp như seed data, migrate dữ liệu, tạo stored procedure:
+
+```bash
+npm run migration:create -- src/migrations/SeedRolesData
+```
+
+### 8.5 Ví dụ code một migration
+
+Ví dụ: Migration tạo bảng `users`
 
 ```typescript
-// ❌ DANGEROUS: Cascade delete on important data
-@Entity()
-export class User {
-  @OneToMany(() => Order, order => order.user, {
-    cascade: ['remove'], // Xóa user → xóa tất cả orders!
-  })
-  orders: Order[];
-}
+// src/migrations/1700000000000-CreateUserTable.ts
+import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm';
 
-// ✅ SAFE: No cascade or soft delete
-@Entity()
-export class User {
-  @OneToMany(() => Order, order => order.user)
-  orders: Order[];
+export class CreateUserTable1700000000000 implements MigrationInterface {
+
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.createTable(
+      new Table({
+        name: 'users',
+        columns: [
+          {
+            name: 'id',
+            type: 'uuid',
+            isPrimary: true,
+            generationStrategy: 'uuid',
+            default: 'uuid_generate_v4()',
+          },
+          {
+            name: 'email',
+            type: 'varchar',
+            length: '255',
+            isUnique: true,
+            isNullable: false,
+          },
+          {
+            name: 'username',
+            type: 'varchar',
+            length: '100',
+            isNullable: false,
+          },
+          {
+            name: 'password_hash',
+            type: 'varchar',
+            length: '255',
+            isNullable: false,
+          },
+          {
+            name: 'is_active',
+            type: 'boolean',
+            default: true,
+          },
+          {
+            name: 'created_at',
+            type: 'timestamp',
+            default: 'CURRENT_TIMESTAMP',
+          },
+          {
+            name: 'updated_at',
+            type: 'timestamp',
+            default: 'CURRENT_TIMESTAMP',
+          },
+        ],
+      }),
+      true, // ifNotExists
+    );
+
+    await queryRunner.createIndex(
+      'users',
+      new TableIndex({
+        name: 'IDX_USERS_EMAIL',
+        columnNames: ['email'],
+      }),
+    );
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.dropIndex('users', 'IDX_USERS_EMAIL');
+    await queryRunner.dropTable('users');
+  }
 }
 ```
 
-#### **7. Not validating before saving**
+## 8.6. Chạy và Rollback Migration
+
+## 8.6.1. Chạy migration
+
+```bash
+npm run migration:run
+```
+
+TypeORM tự động ghi nhận migration đã chạy vào bảng `migrations` trong database. Chỉ những migration **chưa chạy** mới được thực thi.
+
+
+### 8.6.2. Rollback migration cuối
+
+```bash
+npm run migration:revert
+```
+
+Phương thức `down()` của migration gần nhất sẽ được gọi. Mỗi lần chỉ rollback 1 migration.
+
+### 8.6.3. Kiểm tra trạng thái
+
+```bash
+npm run migration:show
+
+# Output:
+# [X] CreateUserTable1700000000000       ← đã chạy
+# [ ] AddProfileColumns1700000001000     ← chưa chạy
+```
+
+### 8.7. Các Pattern Nâng Cao cho Migration
+
+
+### 8.7.1. Thêm cột NOT NULL vào bảng đã có dữ liệu
+
+Không được thêm trực tiếp — cần 3 bước:
 
 ```typescript
-// ❌ BAD: No validation
-async createUser(data: any) {
-  const user = this.userRepository.create(data);
-  return await this.userRepository.save(user);
+public async up(queryRunner: QueryRunner): Promise<void> {
+  // Bước 1: Thêm cột nullable tạm thời
+  await queryRunner.addColumn('users', new TableColumn({
+    name: 'full_name',
+    type: 'varchar',
+    length: '255',
+    isNullable: true,
+  }));
+
+  // Bước 2: Điền dữ liệu cho các bản ghi hiện có
+  await queryRunner.query(`
+    UPDATE users SET full_name = username WHERE full_name IS NULL
+  `);
+
+  // Bước 3: Đổi thành NOT NULL
+  await queryRunner.changeColumn('users', 'full_name', new TableColumn({
+    name: 'full_name',
+    type: 'varchar',
+    length: '255',
+    isNullable: false,
+  }));
 }
 
-// ✅ GOOD: Validate with class-validator
-import { IsEmail, IsNotEmpty } from 'class-validator';
-
-export class CreateUserDto {
-  @IsEmail()
-  @IsNotEmpty()
-  email: string;
-
-  @IsNotEmpty()
-  name: string;
-}
-
-async createUser(data: CreateUserDto) {
-  const user = this.userRepository.create(data);
-  return await this.userRepository.save(user);
+public async down(queryRunner: QueryRunner): Promise<void> {
+  await queryRunner.dropColumn('users', 'full_name');
 }
 ```
+
+### 8.7.2. Thêm Foreign Key
+
+```typescript
+import { TableForeignKey, TableColumn } from 'typeorm';
+
+public async up(queryRunner: QueryRunner): Promise<void> {
+  // Thêm cột trước
+  await queryRunner.addColumn('posts', new TableColumn({
+    name: 'user_id',
+    type: 'uuid',
+    isNullable: false,
+  }));
+
+  // Sau đó thêm FK
+  await queryRunner.createForeignKey('posts', new TableForeignKey({
+    columnNames: ['user_id'],
+    referencedTableName: 'users',
+    referencedColumnNames: ['id'],
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  }));
+}
+
+public async down(queryRunner: QueryRunner): Promise<void> {
+  const table = await queryRunner.getTable('posts');
+  const fk = table!.foreignKeys.find(
+    fk => fk.columnNames.includes('user_id'),
+  );
+  if (fk) await queryRunner.dropForeignKey('posts', fk);
+  await queryRunner.dropColumn('posts', 'user_id');
+}
+```
+
+### 8.7.3. Raw SQL cho thao tác phức tạp (PostgreSQL)
+
+```typescript
+public async up(queryRunner: QueryRunner): Promise<void> {
+  // Tạo ENUM type
+  await queryRunner.query(`
+    CREATE TYPE user_role AS ENUM ('admin', 'moderator', 'user')
+  `);
+
+  await queryRunner.query(`
+    ALTER TABLE users ADD COLUMN role user_role NOT NULL DEFAULT 'user'
+  `);
+
+  // Tạo trigger tự update updated_at
+  await queryRunner.query(`
+    CREATE OR REPLACE FUNCTION set_updated_at()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = CURRENT_TIMESTAMP;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql
+  `);
+
+  await queryRunner.query(`
+    CREATE TRIGGER users_set_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at()
+  `);
+}
+
+public async down(queryRunner: QueryRunner): Promise<void> {
+  await queryRunner.query(`DROP TRIGGER IF EXISTS users_set_updated_at ON users`);
+  await queryRunner.query(`DROP FUNCTION IF EXISTS set_updated_at`);
+  await queryRunner.query(`ALTER TABLE users DROP COLUMN role`);
+  await queryRunner.query(`DROP TYPE IF EXISTS user_role`);
+}
+```
+
+
+### 8.8. Seed Data trong Migration
+
+```typescript
+// src/migrations/1700000002000-SeedInitialRoles.ts
+import { MigrationInterface, QueryRunner } from 'typeorm';
+
+export class SeedInitialRoles1700000002000 implements MigrationInterface {
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      INSERT INTO roles (name, description, created_at) VALUES
+        ('admin',     'Quản trị viên hệ thống',    NOW()),
+        ('moderator', 'Kiểm duyệt viên nội dung',  NOW()),
+        ('user',      'Người dùng thông thường',    NOW())
+      ON CONFLICT (name) DO NOTHING
+    `);
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      DELETE FROM roles WHERE name IN ('admin', 'moderator', 'user')
+    `);
+  }
+}
+```
+
+### 8.9. Best Practices cho Migration
+
+1. **Luôn viết `down()` method:** Đảm bảo có thể rollback khi cần.
+
+2. **Kiểm tra migration trên staging trước production:** Luôn test migration trên môi trường staging để phát hiện lỗi sớm.
+
+3. **Không chỉnh sửa migration đã chạy:** Một khi migration đã chạy trên production, không được chỉnh sửa file đó. Nếu cần thay đổi, hãy tạo migration mới.
+
+4. **Sử dụng descriptive names:** Đặt tên migration rõ ràng để dễ hiểu mục đích.
+
+5. **Version control:** Luôn commit migration files vào version control (Git) để theo dõi lịch sử thay đổi.
+
+
+
+### 8.10. Chạy Migration tự động trong NestJS
+
+Thay vì dùng CLI, bạn có thể trigger migration từ code khi app khởi động:
+
+```typescript
+// src/main.ts
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { AppDataSource } from './data-source';
+
+async function bootstrap() {
+  // Chạy migration trước khi start NestJS
+  await AppDataSource.initialize();
+  await AppDataSource.runMigrations();
+  console.log('✅ Migrations ran successfully');
+
+  const app = await NestFactory.create(AppModule);
+  await app.listen(3000);
+}
+
+bootstrap();
+```
+
+Hoặc dùng config `migrationsRun: true` trong `TypeOrmModule.forRoot()` — TypeORM sẽ tự chạy khi kết nối được thiết lập.
+
+---
+
+### 8.11. Cấu trúc thư mục chuẩn
+
+```
+src/
+├── app.module.ts
+├── data-source.ts          ← Dùng cho TypeORM CLI
+├── main.ts
+├── databases/
+|   └──migrations/
+    │   ├── 1700000000000-CreateUserTable.ts
+    │   ├── 1700000001000-CreatePostTable.ts
+    │   └── 1700000002000-SeedInitialRoles.ts
+    seeds/
+        └── seed-users.ts
+└── modules/
+    └── users/
+        ├── user.entity.ts
+        └── ...
+```
+
+---
+
+### 8.12. Bảng lệnh tham khảo nhanh
+
+| Lệnh | Mô tả |
+|---|---|
+| `migration:generate src/migrations/Name` | Tạo migration từ thay đổi entity |
+| `migration:create src/migrations/Name` | Tạo file migration trống |
+| `migration:run` | Chạy tất cả migration pending |
+| `migration:revert` | Rollback migration cuối cùng |
+| `migration:show` | Xem trạng thái tất cả migration |
+
+---
+
+### 8.13. Checklist trước khi merge
+
+- [ ] `down()` hoàn tác **đúng và đầy đủ** những gì `up()` đã làm
+- [ ] Kiểm tra thứ tự tạo/xóa FK (xóa FK trước, xóa bảng sau)
+- [ ] Test chạy `up()` → `down()` → `up()` không có lỗi
+- [ ] Không hardcode dữ liệu nhạy cảm vào migration
+- [ ] Tên file migration mô tả rõ nội dung thay đổi
+- [ ] `synchronize: false` trong tất cả môi trường production/staging
+
+---
+
+> **Nguyên tắc vàng:** Migration là "lịch sử không thể xóa" của database. Một khi đã merge vào `main` và chạy ở production, **đừng bao giờ chỉnh sửa file migration cũ** — hãy tạo migration mới để sửa lại.
+
+### 8.14. Tại sao cần review migration file trước khi chạy?
+
+
+Vì **`migration:generate` không hoàn hảo** — nó so sánh entity với database và đoán ra SQL cần thiết, nhưng nó không hiểu được *ý định* của bạn, chỉ thấy *sự khác biệt*.
+
+---
+
+#### 8.14.1. Generate có thể tạo ra SQL nguy hiểm
+
+**Ví dụ kinh điển — đổi tên cột:**
+
+Bạn đổi tên cột trong entity:
+```typescript
+// Trước
+@Column()
+name: string;
+
+// Sau — bạn chỉ đổi tên
+@Column()
+fullName: string;
+```
+
+TypeORM **không hiểu** đây là rename. Nó thấy cột `name` biến mất và cột `full_name` xuất hiện, nên generate ra:
+
+```sql
+-- ❌ TypeORM tự generate — MẤT TOÀN BỘ DỮ LIỆU
+ALTER TABLE "users" DROP COLUMN "name";
+ALTER TABLE "users" ADD "full_name" varchar NOT NULL;
+```
+
+Trong khi bạn thực sự muốn:
+
+```sql
+-- ✅ Bạn phải tự sửa lại
+ALTER TABLE "users" RENAME COLUMN "name" TO "full_name";
+```
+
+---
+
+#### 8.14.2. Các trường hợp generate sai thường gặp
+
+| Tình huống | Generate tạo ra | Thực tế cần |
+|---|---|---|
+| Đổi tên cột | DROP + ADD (mất data) | RENAME COLUMN |
+| Đổi tên bảng | DROP + CREATE (mất data) | RENAME TABLE |
+| Đổi kiểu dữ liệu có data | ALTER (có thể lỗi) | Migrate data trước, ALTER sau |
+| Thêm cột NOT NULL | ADD NOT NULL (lỗi nếu bảng có data) | ADD nullable → UPDATE → SET NOT NULL |
+| Thêm unique constraint | Có thể thất bại nếu data duplicate | Kiểm tra/clean data trước |
+
+---
+
+#### 8.14.3. Generate không biết về data đang có
+
+```typescript
+// Bạn thêm cột mới với NOT NULL
+@Column()
+status: string; // TypeORM mặc định NOT NULL
+```
+
+Generate tạo ra:
+```sql
+-- ❌ Sẽ lỗi ngay nếu bảng đang có 10,000 rows
+ALTER TABLE "posts" ADD "status" varchar NOT NULL;
+-- ERROR: column "status" contains null values
+```
+
+Phải sửa lại thành 3 bước như đã đề cập trong tutorial.
+
+---
+
+#### 8.14.4. Default value có thể không đúng context
+
+```typescript
+@Column({ default: () => 'CURRENT_TIMESTAMP' })
+createdAt: Date;
+```
+
+Generate có thể tạo ra default value dạng string literal thay vì function call, dẫn đến mọi row đều có cùng một timestamp cố định thay vì thời điểm thực tế khi insert.
+
+---
+
+#### 8.14.5. Thứ tự thao tác có thể sai
+
+Khi bạn thay đổi nhiều thứ cùng lúc, generate đôi khi tạo ra thứ tự không hợp lệ — ví dụ tạo foreign key trước khi tạo bảng được tham chiếu, hoặc xóa bảng trước khi xóa FK phụ thuộc vào nó.
+
+---
+
+**Quy trình review đúng**
+
+```bash
+# 1. Generate ra file
+npm run migration:generate -- src/migrations/SomeChange
+
+# 2. Mở file, đọc kỹ từng dòng SQL trong up() và down()
+# 3. Tự hỏi:
+#    - SQL này có làm mất data không?
+#    - Bảng đang có data không?
+#    - down() có hoàn tác đúng không?
+#    - Thứ tự các lệnh có hợp lý không?
+
+# 4. Chạy thử trên database dev/staging TRƯỚC
+npm run migration:run
+
+# 5. Kiểm tra data vẫn còn nguyên
+# 6. Mới merge vào main
+```
+
+---
+
+Tóm lại: `migration:generate` là công cụ hỗ trợ, không phải công cụ tự động hoàn toàn. Nó giỏi tạo boilerplate, nhưng **bạn** mới là người hiểu data đang có và ý định thực sự của thay đổi. Review là bước bảo vệ production khỏi những lỗi không thể undo.
+
+
+---
+
+## Bonus: Advanced SQL Features
+
+- [ SQL Stored Procedures](./typeorm-stored-procedures.md)
+- [Advanced Patterns & Best Practices](./advanced-patterns-best-practices.md)
