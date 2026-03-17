@@ -2,6 +2,7 @@
 
 ## Mục tiêu bài học
 
+- Hiểu vai trò của database trong ứng dụng
 - Hiểu khái niệm ORM và lợi ích của nó
 - Tìm hiểu về TypeORM và cách tích hợp với NestJS
 - Kết nối và cấu hình PostgreSQL database
@@ -13,9 +14,30 @@
 
 ---
 
-## 1. ORM là gì?
+## 1. Database trong Backend Application
 
-### 1.1. Khái niệm về ORM
+### 1.1. Vai trò của database
+
+Database là thành phần quan trọng trong hầu hết các ứng dụng backend. Nó đóng vai trò như một nơi lưu trữ dữ liệu có cấu trúc, cho phép:
+
+- **Lưu trữ**: Giữ dữ liệu một cách bền vững, ngay cả khi ứng dụng tắt
+- **Truy vấn**: Cho phép truy xuất dữ liệu một cách hiệu quả thông qua các câu lệnh SQL hoặc ORM
+- **Quản lý quan hệ**: Lưu trữ và quản lý các mối quan hệ giữa các thực thể (entities)
+- **Bảo mật**: Cung cấp các cơ chế bảo mật để kiểm soát truy cập dữ liệu
+- **Tính toàn vẹn**: Đảm bảo dữ liệu luôn nhất quán và chính xác thông qua các ràng buộc (constraints)
+- **Hiệu suất**: Tối ưu hóa truy vấn và lưu trữ để đảm bảo ứng dụng hoạt động nhanh chóng
+- **Scalability**: Hỗ trợ mở rộng khi lượng dữ liệu và người dùng tăng lên
+- **Backup và Recovery**: Cung cấp các công cụ để sao lưu và khôi phục dữ liệu khi cần thiết
+
+### 1.2. Các loại database phổ biến
+
+- **Relational Databases (RDBMS)**: MySQL, PostgreSQL, SQL Server, Oracle
+- **NoSQL Databases**: MongoDB, Cassandra, Redis
+
+
+## 2. ORM là gì?
+
+### 2.1. Khái niệm về ORM
 
 **ORM** (Object-Relational Mapping) là một kỹ thuật lập trình cho phép bạn **ánh xạ** (mapping) giữa:
 
@@ -46,7 +68,9 @@ const newBook = bookRepository.create({
 await bookRepository.save(newBook);
 ```
 
-### 1.2. ORM giải quyết vấn đề gì?
+### 2.2. ORM giải quyết vấn đề gì?
+
+ORM giúp giải quyết nhiều vấn đề khi làm việc với database:
 
 **Vấn đề 1: SQL Injection**
 
@@ -141,7 +165,7 @@ class User {
 }
 ```
 
-### 1.3. ORM và SQL truyền thống
+### 2.3. ORM và SQL truyền thống
 
 **So sánh:**
 
@@ -171,9 +195,9 @@ class User {
 
 ---
 
-## 2. Giới thiệu TypeORM / Prisma
+## 3. Giới thiệu TypeORM / Prisma
 
-### 2.1. Tổng quan về TypeORM
+### 3.1. Tổng quan về TypeORM
 
 **TypeORM** là một ORM được viết bằng TypeScript, hỗ trợ nhiều databases:
 
@@ -215,7 +239,7 @@ export class Book {
 }
 ```
 
-### 2.2. Tổng quan về Prisma
+### 3.2. Tổng quan về Prisma
 
 **Prisma** là một modern ORM với approach khác:
 
@@ -239,7 +263,7 @@ model Book {
 }
 ```
 
-### 2.3. So sánh TypeORM và Prisma
+### 3.3. So sánh TypeORM và Prisma
 
 | Tiêu chí | TypeORM | Prisma |
 |----------|---------|--------|
@@ -279,7 +303,7 @@ const books = await prisma.book.findMany({
 });
 ```
 
-### 2.4. Lý do chọn TypeORM trong bài học này
+### 3.4. Lý do chọn TypeORM trong bài học này
 
 1. **Native NestJS Integration**: TypeORM có module chính thức từ NestJS
 2. **Decorators**: Nhất quán với NestJS style
@@ -292,11 +316,11 @@ const books = await prisma.book.findMany({
 
 ---
 
-## 3. Cấu hình kết nối database (PostgreSQL)
+## 4. Cấu hình kết nối database (PostgreSQL)
 
 Xem tài liệu chính thức về [TypeORM trong NestJS](https://docs.nestjs.com/recipes/sql-typeorm)
 
-### 3.1. Cài đặt package cần thiết
+### 4.1. Cài đặt package cần thiết
 
 ```bash
 # Cài đặt TypeORM và PostgreSQL driver
@@ -309,7 +333,7 @@ npm install @nestjs/typeorm typeorm pg
 - `typeorm`: ORM library
 - `pg`: PostgreSQL driver
 
-### 3.2. Cấu hình .env
+### 4.2. Cấu hình .env
 
 Thêm các biến môi trường kết nối database vào trong file `.env`:
 
@@ -358,7 +382,7 @@ Tại sao không dùng synchronize trong production?
 - Không rollback được nếu có lỗi
 - Performance issues khi app khởi động
 
-### 3.3. Cấu hình kết nối trong ứng dụng NestJS
+### 4.3. Cấu hình kết nối trong ứng dụng NestJS
 
 #### Bước 1: Tạo database configuration file
 
@@ -487,7 +511,7 @@ export class BooksService {
 
 Qua `repository`, bạn có thể thực hiện các thao tác truy vấn trên Book entity.
 
-### 3.4. Database module trong NestJS: forRoot và forFeature
+### 4.4. Database module trong NestJS: forRoot và forFeature
 
 **Database module là gì?**
 
@@ -565,9 +589,9 @@ export class AuthorsModule {}
 
 ---
 
-## 4. Entity & Repository
+## 5. Entity & Repository
 
-### 4.1. Entity là gì?
+### 5.1. Entity là gì?
 
 **Entity** là một class đại diện cho một **table** trong database. Mỗi instance của Entity tương ứng với một **row** trong table.
 
@@ -595,7 +619,9 @@ class Book {
 }
 ```
 
-### 4.2. Column, Primary Key, Data Types
+### 5.2. Column, Primary Key, Data Types
+
+Khi tạo một Entity, bạn sẽ sử dụng các **decorators** để định nghĩa các column, primary key, và kiểu dữ liệu.
 
 **Tạo Book Entity:**
 
@@ -738,7 +764,7 @@ export class Example {
 }
 ```
 
-### 4.3. Repository Pattern
+### 5.3. Repository Pattern
 
 **Repository** là một pattern cung cấp một abstraction layer để truy cập database. Trong TypeORM, Repository là class chứa các methods để thao tác với entities.
 
@@ -774,19 +800,594 @@ createQueryBuilder() // Tạo complex queries
 - Xem thêm chi tiết về [Find Options](https://typeorm.io/docs/working-with-entity-manager/find-options)
 - Xem thêm chi tiết về [Repository API](https://typeorm.io/docs/working-with-entity-manager/repository-api)
 
+--
+
+## 6. Validation và Transformation với DTO
+
+### 6.1. Validation là gì ?
+
+**Validation** là quá trình kiểm tra dữ liệu đầu vào để đảm bảo rằng nó đáp ứng các yêu cầu nhất định trước khi được xử lý hoặc lưu vào database. Validation giúp:
+
+- Bảo vệ ứng dụng khỏi dữ liệu không hợp lệ hoặc độc hại
+- Cải thiện trải nghiệm người dùng bằng cách cung cấp feedback rõ ràng
+- Đảm bảo tính toàn vẹn của dữ liệu
+- Giảm thiểu lỗi và bugs trong ứng dụng
+- Tăng cường bảo mật bằng cách ngăn chặn các cuộc tấn công như SQL Injection, XSS, v.v.
+
+### 6.2. DTO (Data Transfer Object) là gì?
+
+**DTO (Data Transfer Object)** là một design pattern được sử dụng để truyền dữ liệu giữa các layer khác nhau của ứng dụng. DTO giúp tách biệt giữa dữ liệu trong database và dữ liệu được truyền qua API.
+
+**DTO** là một design pattern dùng để định nghĩa cấu trúc dữ liệu được truyền giữa các layers của ứng dụng. Trong NestJS, DTO giúp:
+
+- Định nghĩa schema cho dữ liệu đầu vào/đầu ra
+- Validate dữ liệu tự động
+- Transform dữ liệu (type conversion)
+- Tạo documentation tự động (với Swagger)
+- Type safety với TypeScript
+
+
+**Tại sao cần DTO?**
+
+Không có DTO:
+
+```typescript
+@Post()
+create(@Body() body: any) {
+  // body có thể là bất cứ thứ gì
+  // Không có type safety
+  // Không có validation
+  // Dễ gây lỗi
+  return this.booksService.create(body);
+}
+```
+
+Có DTO:
+
+```typescript
+@Post()
+create(@Body() createBookDto: CreateBookDto) {
+  // createBookDto đã được validate
+  // Type-safe
+  // IDE có autocomplete
+  return this.booksService.create(createBookDto);
+}
+```
+
+### 6.3. Validation với class-validator và class-transformer
+
+
+**Bước 1: Cài đặt thư viện:**
+
+```bash
+npm install class-validator class-transformer
+```
+
+**class-validator**: Thư viện để validate dữ liệu dựa trên decorators
+**class-transformer**: Thư viện để transform plain objects thành class instances
+
+**Các decorators phổ biến:**
+
+| Decorator | Mục đích | Ví dụ |
+|-----------|----------|-------|
+| `@IsString()` | Validate là string | `@IsString() title: string;` |
+| `@IsNumber()` | Validate là number | `@IsNumber() pages: number;` |
+| `@IsInt()` | Validate là integer | `@IsInt() age: number;` |
+| `@IsEmail()` | Validate email | `@IsEmail() email: string;` |
+| `@IsNotEmpty()` | Không được rỗng | `@IsNotEmpty() title: string;` |
+| `@IsOptional()` | Field tùy chọn | `@IsOptional() description?: string;` |
+| `@MinLength(n)` | Độ dài tối thiểu | `@MinLength(3) title: string;` |
+| `@MaxLength(n)` | Độ dài tối đa | `@MaxLength(100) title: string;` |
+| `@Min(n)` | Giá trị tối thiểu | `@Min(1) pages: number;` |
+| `@Max(n)` | Giá trị tối đa | `@Max(10000) pages: number;` |
+| `@IsArray()` | Validate là array | `@IsArray() genres: string[];` |
+| `@ArrayMinSize(n)` | Array size tối thiểu | `@ArrayMinSize(1) genres: string[];` |
+| `@ValidateNested()` | Validate nested object | `@ValidateNested() author: AuthorDto;` |
+
+
+**Bước 2: Tạo DTO:**
+
+**Ví dụ DTO với validation entity "Book":**
+
+**CreateBookDto:**
+
+```typescript
+// src/books/dto/create-book.dto.ts
+import {
+  IsString,
+  IsNotEmpty,
+  MinLength,
+  MaxLength,
+  IsInt,
+  Min,
+  Max,
+  IsArray,
+  ArrayMinSize,
+  IsOptional,
+} from 'class-validator';
+
+export class CreateBookDto {
+  @IsString({ message: 'Tên sách phải là chuỗi ký tự' })
+  @IsNotEmpty({ message: 'Tên sách không được để trống' })
+  @MinLength(3, { message: 'Tên sách phải có ít nhất 3 ký tự' })
+  @MaxLength(100, { message: 'Tên sách không được vượt quá 100 ký tự' })
+  title: string;
+
+  @IsString({ message: 'Mô tả phải là chuỗi ký tự' })
+  @IsNotEmpty({ message: 'Mô tả không được để trống' })
+  @MinLength(10, { message: 'Mô tả phải có ít nhất 10 ký tự' })
+  @MaxLength(500, { message: 'Mô tả không được vượt quá 500 ký tự' })
+  description: string;
+
+  @IsInt({ message: 'Số trang phải là số nguyên' })
+  @Min(1, { message: 'Số trang phải lớn hơn hoặc bằng 1' })
+  @Max(10000, { message: 'Số trang phải nhỏ hơn hoặc bằng 10000' })
+  pages: number;
+
+  @IsArray({ message: 'Thể loại phải là một mảng' })
+  @ArrayMinSize(1, { message: 'Sách phải có ít nhất 1 thể loại' })
+  @IsString({ each: true, message: 'Mỗi thể loại phải là chuỗi ký tự' })
+  genres: string[];
+
+  @IsString({ message: 'ISBN phải là chuỗi ký tự' })
+  @IsOptional()
+  isbn?: string;
+
+  @IsInt({ message: 'Năm xuất bản phải là số nguyên' })
+  @Min(1000, { message: 'Năm xuất bản không hợp lệ' })
+  @Max(new Date().getFullYear(), { message: 'Năm xuất bản không được lớn hơn năm hiện tại' })
+  @IsOptional()
+  publishedYear?: number;
+}
+```
+
+**UpdateBookDto:**
+
+```typescript
+// src/books/dto/update-book.dto.ts
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateBookDto } from './create-book.dto';
+
+// PartialType tự động làm tất cả các fields trở thành optional
+export class UpdateBookDto extends PartialType(CreateBookDto) {}
+
+// Tương đương với:
+// export class UpdateBookDto {
+//   @IsOptional()
+//   @IsString()
+//   @MinLength(3)
+//   @MaxLength(100)
+//   title?: string;
+//
+//   @IsOptional()
+//   @IsString()
+//   @MinLength(10)
+//   @MaxLength(500)
+//   description?: string;
+//   
+//   // ... các fields khác
+// }
+```
+
+**FilterBooksDto:**
+
+```typescript
+// src/books/dto/filter-books.dto.ts
+import { IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class FilterBooksDto {
+  @IsOptional()
+  @IsString()
+  genre?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  minPages?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Max(10000)
+  maxPages?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 10;
+}
+```
+
+**Bước 3: Cấu hình Pipe:**
+
+
+Muốn kích hoạt validation tự động, ta sử dụng `ValidationPipe` của NestJS và cấu hình trong `main.ts`.
+
+**Global ValidationPipe - Áp dụng cho toàn bộ ứng dụng:**
+
+```typescript
+// src/main.ts
+import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  // Cấu hình ValidationPipe global
+  app.useGlobalPipes(
+    new ValidationPipe({
+      // Tự động loại bỏ các properties không có trong DTO
+      whitelist: true,
+      
+      // Throw error nếu có property không hợp lệ
+      forbidNonWhitelisted: true,
+      
+      // Tự động transform payload thành DTO instance
+      transform: true,
+      
+      // Tự động convert types (string -> number)
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+      
+      // Hiển thị error messages (set true trong production để ẩn)
+      disableErrorMessages: false,
+      
+      // Cấu hình validation error response
+      validationError: {
+        target: false, // Không include target object trong error
+        value: false,  // Không include value trong error
+      },
+    })
+  );
+
+  await app.listen(3000);
+}
+bootstrap();
+```
+
+**Các options quan trọng của ValidationPipe:**
+
+| Option | Mặc định | Mô tả |
+|--------|----------|-------|
+| `whitelist` | false | Tự động xóa properties không có trong DTO |
+| `forbidNonWhitelisted` | false | Throw error nếu có property không hợp lệ |
+| `transform` | false | Transform payload thành DTO instance |
+| `transformOptions` | {} | Options cho class-transformer |
+| `disableErrorMessages` | false | Ẩn error messages (dùng cho production) |
+| `skipMissingProperties` | false | Bỏ qua validation cho undefined fields |
+| `skipNullProperties` | false | Bỏ qua validation cho null fields |
+| `skipUndefinedProperties` | false | Bỏ qua validation cho undefined fields |
+
+**Ví dụ về whitelist và forbidNonWhitelisted:**
+
+```typescript
+// CreateBookDto chỉ có: title, description, pages, genres
+
+// Request body:
+{
+  "title": "Clean Code",
+  "description": "A handbook...",
+  "pages": 464,
+  "genres": ["Programming"],
+  "extraField": "This should not be here",
+  "anotherField": 123
+}
+
+// Với whitelist: true, forbidNonWhitelisted: false
+// => extraField và anotherField sẽ bị loại bỏ im lặng
+
+// Với whitelist: true, forbidNonWhitelisted: true
+// => Throw BadRequestException: "property extraField should not exist"
+```
+
+**Controller-level hoặc Route-level ValidationPipe:**
+
+```typescript
+// src/books/books.controller.ts
+import { 
+  Controller, 
+  Post, 
+  Body, 
+  UsePipes, 
+  ValidationPipe 
+} from '@nestjs/common';
+import { CreateBookDto } from './dto/create-book.dto';
+
+@Controller('books')
+export class BooksController {
+  // Áp dụng cho một route cụ thể
+  @Post()
+  @UsePipes(new ValidationPipe({ transform: true }))
+  create(@Body() createBookDto: CreateBookDto) {
+    console.log(createBookDto instanceof CreateBookDto); // true
+    return { message: 'Book created', data: createBookDto };
+  }
+
+  // Áp dụng cho một parameter cụ thể
+  @Post('alternative')
+  createAlternative(
+    @Body(new ValidationPipe({ transform: true })) 
+    createBookDto: CreateBookDto
+  ) {
+    return { message: 'Book created', data: createBookDto };
+  }
+}
+```
+
+**Ví dụ validation thực tế:**
+
+```typescript
+// src/books/books.controller.ts
+import { 
+  Controller, 
+  Get, 
+  Post, 
+  Put, 
+  Delete,
+  Body, 
+  Param, 
+  Query,
+  ParseIntPipe,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { BooksService } from './books.service';
+import { CreateBookDto } from './dto/create-book.dto';
+import { UpdateBookDto } from './dto/update-book.dto';
+import { FilterBooksDto } from './dto/filter-books.dto';
+
+@Controller('books')
+export class BooksController {
+  constructor(private readonly booksService: BooksService) {}
+
+  @Get()
+  findAll(@Query() filterDto: FilterBooksDto) {
+    console.log('4. Pipe: Validating and transforming query params');
+    // filterDto đã được validate và transform
+    return this.booksService.findAll(filterDto);
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    // ParseIntPipe tự động convert string -> number và validate
+    console.log(typeof id); // number
+    return this.booksService.findOne(id);
+  }
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  create(@Body() createBookDto: CreateBookDto) {
+    console.log('4. Pipe: Validating and transforming body');
+    // createBookDto đã được validate
+    return this.booksService.create(createBookDto);
+  }
+
+  @Put(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateBookDto: UpdateBookDto,
+  ) {
+    return this.booksService.update(id, updateBookDto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.booksService.remove(id);
+  }
+}
+```
+
+**Test validation:**
+
+Xem tại file REST Client [test-validation-book.http](./test-validation-book.http)
+
+
+### 6.4. Sự khác biệt giữa DTO Response và Entity
+
+**Entity:**
+
+- Đại diện cho database table
+- Chứa tất cả columns, including sensitive data
+- Có decorators của TypeORM
+- Map trực tiếp với database schema
+
+**DTO Response:**
+
+- Đại diện cho data được trả về client
+- Chỉ chứa data cần thiết
+- Không có decorators của TypeORM
+- Có thể chứa computed fields
+
+**Ví dụ so sánh:**
+
+```typescript
+// Entity - Tất cả fields trong database
+@Entity()
+export class Book {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  title: string;
+
+  @Column()
+  description: string;
+
+  @Column()
+  pages: number;
+
+  @Column()
+  internalNotes: string; // Field nội bộ, không nên trả về client
+
+  @Column()
+  cost: number; // Giá vốn, sensitive
+
+  @Column()
+  price: number; // Giá bán
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @Column({ nullable: true })
+  deletedAt: Date; // Soft delete
+}
+
+// DTO Response - Chỉ data cần thiết cho client
+export class BookResponseDto {
+  id: number;
+  title: string;
+  description: string;
+  pages: number;
+  price: number; // Không có cost
+  createdAt: Date;
+  // Không có internalNotes, updatedAt, deletedAt
+
+  // Computed field
+  summary: string;
+}
+```
+
+
+
+### 6.5. Tại sao không nên trả về Entity trực tiếp từ Controller
+
+**1. Security - Lộ sensitive data:**
+
+```typescript
+// ❌ SAI - Trả về Entity
+@Get(':id')
+async findOne(@Param('id') id: number) {
+  return await this.booksService.findOne(id);
+}
+
+// Response:
+{
+  "id": 1,
+  "title": "Clean Code",
+  "price": 250000,
+  "cost": 150000,           // ❌ Lộ giá vốn
+  "internalNotes": "...",   // ❌ Lộ notes nội bộ
+  "deletedAt": null
+}
+
+// ✅ ĐÚNG - Trả về DTO
+@Get(':id')
+async findOne(@Param('id') id: number) {
+  const book = await this.booksService.findOne(id);
+  return new BookResponseDto(book);
+}
+
+// Response:
+{
+  "id": 1,
+  "title": "Clean Code",
+  "price": 250000,
+  "summary": "Clean Code - 464 trang"
+}
+```
+
+**2. Over-fetching - Trả về data không cần thiết:**
+
+```typescript
+// Entity có nhiều fields
+@Entity()
+export class Book {
+  // ... 20+ columns
+  @Column('text')
+  longDescription: string; // 10,000 characters
+
+  @Column('json')
+  metadata: object; // Large object
+}
+
+// Client chỉ cần title và id
+// Nhưng Entity trả về tất cả -> Waste bandwidth
+```
+
+**3. Coupling - Gắn chặt API với Database:**
+
+```typescript
+// Nếu thay đổi database schema
+@Entity()
+export class Book {
+  @Column()
+  book_title: string; // Đổi từ 'title' sang 'book_title'
+}
+
+// API response cũng thay đổi -> Breaking change cho clients
+// Với DTO, có thể map lại mà không ảnh hưởng API
+```
+
+**4. Lack of flexibility - Không linh hoạt:**
+
+```typescript
+// Muốn thêm computed field
+// Entity không thể có business logic phức tạp
+// DTO có thể:
+
+export class BookResponseDto {
+  id: number;
+  title: string;
+  price: number;
+
+  // Computed fields
+  priceFormatted: string; // "250,000 VNĐ"
+  isNew: boolean;         // createdAt < 30 days
+  rating: number;         // Tính từ reviews
+  summary: string;        // title + pages
+}
+```
+
+**5. Version Control - Khó maintain versions:**
+
+```typescript
+// API v1 cần format này
+// API v2 cần format khác
+// Với Entity: Khó quản lý
+// Với DTO: Dễ dàng
+
+export class BookResponseDtoV1 {
+  id: number;
+  title: string;
+}
+
+export class BookResponseDtoV2 {
+  id: number;
+  title: string;
+  description: string;
+  author: AuthorDto; // Thêm relation
+}
+```
+
 ---
 
-## 5. CRUD cơ bản
+## 7. Thực hành CRUD cơ bản
 
 `CURD` là viết tắt của các thao tác cơ bản với dữ liệu. Sau đây là cách implement CRUD operations cho Book entity sử dụng BookRepository.
 
 Giúp bạn hiểu rõ hơn về cách sử dụng Repository để thực hiện các thao tác với database.
 
-### 5.1. Tạo Entity
+### 7.1. Tạo Entity
 
 Chúng ta đã tạo Book Entity ở phần trước. Bây giờ implement CRUD operations.
 
-### 5.2. Sử dụng Repository để thực hiện các thao tác CRUD
+### 7.2. Sử dụng Repository để thực hiện các thao tác CRUD
 
 **Complete BooksService với CRUD:**
 
@@ -1111,195 +1712,14 @@ export class BooksController {
 
 ---
 
-## 6. DTO Response vs Entity
 
-### 6.1. Sự khác biệt giữa DTO Response và Entity
-
-**Entity:**
-
-- Đại diện cho database table
-- Chứa tất cả columns, including sensitive data
-- Có decorators của TypeORM
-- Map trực tiếp với database schema
-
-**DTO Response:**
-
-- Đại diện cho data được trả về client
-- Chỉ chứa data cần thiết
-- Không có decorators của TypeORM
-- Có thể chứa computed fields
-
-**Ví dụ so sánh:**
-
-```typescript
-// Entity - Tất cả fields trong database
-@Entity()
-export class Book {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column()
-  title: string;
-
-  @Column()
-  description: string;
-
-  @Column()
-  pages: number;
-
-  @Column()
-  internalNotes: string; // Field nội bộ, không nên trả về client
-
-  @Column()
-  cost: number; // Giá vốn, sensitive
-
-  @Column()
-  price: number; // Giá bán
-
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-
-  @Column({ nullable: true })
-  deletedAt: Date; // Soft delete
-}
-
-// DTO Response - Chỉ data cần thiết cho client
-export class BookResponseDto {
-  id: number;
-  title: string;
-  description: string;
-  pages: number;
-  price: number; // Không có cost
-  createdAt: Date;
-  // Không có internalNotes, updatedAt, deletedAt
-
-  // Computed field
-  summary: string;
-}
-```
-
-
-
-### 6.2. Tại sao không nên trả về Entity trực tiếp từ Controller
-
-**1. Security - Lộ sensitive data:**
-
-```typescript
-// ❌ SAI - Trả về Entity
-@Get(':id')
-async findOne(@Param('id') id: number) {
-  return await this.booksService.findOne(id);
-}
-
-// Response:
-{
-  "id": 1,
-  "title": "Clean Code",
-  "price": 250000,
-  "cost": 150000,           // ❌ Lộ giá vốn
-  "internalNotes": "...",   // ❌ Lộ notes nội bộ
-  "deletedAt": null
-}
-
-// ✅ ĐÚNG - Trả về DTO
-@Get(':id')
-async findOne(@Param('id') id: number) {
-  const book = await this.booksService.findOne(id);
-  return new BookResponseDto(book);
-}
-
-// Response:
-{
-  "id": 1,
-  "title": "Clean Code",
-  "price": 250000,
-  "summary": "Clean Code - 464 trang"
-}
-```
-
-**2. Over-fetching - Trả về data không cần thiết:**
-
-```typescript
-// Entity có nhiều fields
-@Entity()
-export class Book {
-  // ... 20+ columns
-  @Column('text')
-  longDescription: string; // 10,000 characters
-
-  @Column('json')
-  metadata: object; // Large object
-}
-
-// Client chỉ cần title và id
-// Nhưng Entity trả về tất cả -> Waste bandwidth
-```
-
-**3. Coupling - Gắn chặt API với Database:**
-
-```typescript
-// Nếu thay đổi database schema
-@Entity()
-export class Book {
-  @Column()
-  book_title: string; // Đổi từ 'title' sang 'book_title'
-}
-
-// API response cũng thay đổi -> Breaking change cho clients
-// Với DTO, có thể map lại mà không ảnh hưởng API
-```
-
-**4. Lack of flexibility - Không linh hoạt:**
-
-```typescript
-// Muốn thêm computed field
-// Entity không thể có business logic phức tạp
-// DTO có thể:
-
-export class BookResponseDto {
-  id: number;
-  title: string;
-  price: number;
-
-  // Computed fields
-  priceFormatted: string; // "250,000 VNĐ"
-  isNew: boolean;         // createdAt < 30 days
-  rating: number;         // Tính từ reviews
-  summary: string;        // title + pages
-}
-```
-
-**5. Version Control - Khó maintain versions:**
-
-```typescript
-// API v1 cần format này
-// API v2 cần format khác
-// Với Entity: Khó quản lý
-// Với DTO: Dễ dàng
-
-export class BookResponseDtoV1 {
-  id: number;
-  title: string;
-}
-
-export class BookResponseDtoV2 {
-  id: number;
-  title: string;
-  description: string;
-  author: AuthorDto; // Thêm relation
-}
-```
-
-## 7. Giải pháp Response
+## 8. Giải pháp Response
 
 Có nhiều cách để giải quyết vấn đề trả về response an toàn và hiệu quả trong đó có 3 cách phổ biến:
 
-### 7.1. Serialization
+### 8.1. Serialization
 
-#### 7.1. **Serialization là gì?**
+#### 8.1.1 **Serialization là gì?**
 
 **Serialization** là quá trình chuyển đổi objects thành format phù hợp để gửi qua network (thường là JSON).
 
@@ -1320,7 +1740,7 @@ Trong quá trình này NestJS serialization giúp:
 
 > 📃 Xem tài liệu chính thức về [Serialization trong NestJS](https://docs.nestjs.com/techniques/serialization)
 
-#### 7.2. Ví dụ chưa sử dụng Serialization với NestJS
+#### 8.2.2. Ví dụ chưa sử dụng Serialization với NestJS
 
 ```typescript
 class Book {
@@ -1356,7 +1776,7 @@ Kết quả trả về khi gọi API:
 
 ❌ Rất nguy hiểm → lộ thông tin nhạy cảm!
 
-#### 7.3. Serialization trong NestJS hoạt động thế nào?
+#### 8.2.3. Serialization trong NestJS hoạt động thế nào?
 
 NestJS sử dụng thư viện `class-transformer` để hỗ trợ serialization thông qua decorators như `@Expose()`, `@Exclude()`, và `@Transform()`.
 
@@ -1491,7 +1911,7 @@ export class BookEntity {
 
 **Lưu ý:** Chỉ những fields được đánh dấu với `@Expose()` mới xuất hiện trong response. Field `internalCode` đã bị loại bỏ hoàn toàn.
 
-#### 7.4. Vấn đề lớn: Object thường là plain object, không phải class instance
+#### 8.2.4. Vấn đề lớn: Object thường là plain object, không phải class instance
 
 Giả sử bạn có query DB:
 
@@ -1521,7 +1941,7 @@ Kết quả `book` là:
 
 ❌ ==> Khiến cho `@Exclude()` **KHÔNG hoạt động** như mong muốn.
 
-#### 7.5. Giải pháp: Luôn trả về class instance từ controller
+#### 8.2.5. Giải pháp: Luôn trả về class instance từ controller
 
 Follow chuẩn trong NestJS:
 
@@ -1556,8 +1976,7 @@ findOne(@Param('id', ParseIntPipe) id: number) {
 }
 ```
 
-
-### 7.2. Sử dụng DTO Response thay vì Entity
+### 8.2. Sử dụng DTO Response thay vì Entity
 
 Ví dụ về DTO Response cho Book:
 
@@ -1621,9 +2040,9 @@ Ngoài cách trên, bạn có thể sử dụng `Data Mapper Pattern` như phầ
 
 ---
 
-### 7.3 Data Mapper Pattern
+### 8.3 Data Mapper Pattern
 
-#### 7.3.1. Giới thiệu Data Mapper Pattern
+#### 8.3.1. Giới thiệu Data Mapper Pattern
 
 **Data Mapper Pattern** là một pattern tách biệt:
 
@@ -1643,7 +2062,7 @@ Database (Entity)  ←→  Mapper  ←→  Business Logic (DTO)
      Book Entity          BookMapper      BookResponseDto
 ```
 
-#### 7.3.2. Lợi ích của việc sử dụng Data Mapper Pattern
+#### 8.3.2. Lợi ích của việc sử dụng Data Mapper Pattern
 
 **1. Separation of Concerns:**
 
@@ -1728,7 +2147,7 @@ export class BookMapper {
 }
 ```
 
-#### 7.3.3. Cách triển khai Data Mapper Pattern với NestJS
+#### 8.3.3. Cách triển khai Data Mapper Pattern với NestJS
 
 **Bước 1: Tạo Response DTOs:**
 
@@ -2059,12 +2478,6 @@ const adminDto = BookMapper.toDto(book, {
 
 ---
 
-## 8. Cấu hình multi database connection
-
-Xem hướng dẫn chi tiết tại: [NestJS Multi Database Connections](./multi-database.md)
-
----
-
 ## 9. Best Practices
 
 ### 9.1. Entity Design
@@ -2215,3 +2628,5 @@ async create(@Body() data: any) {
   return await this.bookRepository.save(data);
 }
 ```
+
+

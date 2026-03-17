@@ -2,6 +2,7 @@
 
 ## Mục tiêu bài học
 
+- Hiểu về Decorators và cách chúng hoạt động trong NestJS
 - Hiểu về vòng đời của một request trong NestJS
 - Tìm hiểu về Validation và Transformation với DTO
 - Quản lý lỗi và Serialization trong NestJS
@@ -10,9 +11,317 @@
 
 ---
 
-## 1. Lifecycle trong NestJS
+## 1. Decorators trong NestJS
 
-### 1.1. Vòng đời của một Request
+### 1.1. Decorators là gì?
+
+**Decorators** là một tính năng của TypeScript cho phép bạn thêm metadata vào các class, method, property, hoặc parameter. Trong NestJS, decorators được sử dụng rộng rãi để định nghĩa các thành phần của ứng dụng như controllers, services, modules, và để cấu hình routing, validation, guards, interceptors, v.v.
+
+### 1.2. Các loại Decorators trong NestJS:
+
+#### 1.2.1. Class Decorators
+
+**Class decorators** được áp dụng cho class và thường dùng để định nghĩa controllers, services, modules, v.v.
+
+Danh sách một số class decorators phổ biến:
+
+| Decorator | Mục đích | Ví dụ |
+|-----------|----------|-------|
+| `@Controller()` | Định nghĩa một controller | `@Controller('books')` |
+| `@Injectable()` | Định nghĩa một service có thể inject được | `@Injectable()` |
+| `@Module()` | Định nghĩa một module | `@Module({ imports: [], controllers: [], providers: [] })` |
+| `@Catch()` | Định nghĩa một exception filter | `@Catch(HttpException)` |
+| `@UseGuards()` | Áp dụng guards cho class | `@UseGuards(AuthGuard)` |
+| `@UseInterceptors()` | Áp dụng interceptors cho class | `@UseInterceptors(LoggingInterceptor)` |
+| `@UsePipes()` | Áp dụng pipes cho class | `@UsePipes(ValidationPipe)` |
+| `@UseFilters()` | Áp dụng exception filters cho class | `@UseFilters(HttpExceptionFilter)` |
+| `@Global()` | Định nghĩa một global module | `@Global()` |
+
+Ví dụ:
+
+```typescript
+import { Controller, Get } from '@nestjs/common';
+//Đây là một class decorator, nó đánh dấu BooksController là một controller và định nghĩa route prefix là 'books'
+@Controller('books')
+export class BooksController {
+  @Get()
+  findAll() {
+    return 'This action returns all books';
+  }
+}
+```
+
+#### 1.2.2. Method Decorators
+
+**Method Decorators** là các decorators được áp dụng cho các phương thức trong class, thường dùng để định nghĩa các route handlers trong controllers.
+
+Danh sách một số method decorators phổ biến:
+
+| Decorator | Mục đích | Ví dụ |
+|-----------|----------|-------|
+| `@Get()` | Định nghĩa route handler cho GET requests | `@Get('all')` |
+| `@Post()` | Định nghĩa route handler cho POST requests | `@Post('create')` |
+| `@Put()` | Định nghĩa route handler cho PUT requests | `@Put('update')` |
+| `@Delete()` | Định nghĩa route handler cho DELETE requests | `@Delete('delete')` |
+| `@Patch()` | Định nghĩa route handler cho PATCH requests | `@Patch('partial-update')` |
+| `@Options()` | Định nghĩa route handler cho OPTIONS requests | `@Options('options')` |
+| `@Head()` | Định nghĩa route handler cho HEAD requests | `@Head('head')` |
+
+Ví dụ:
+
+```typescript
+import { Controller, Get } from '@nestjs/common';
+@Controller('books')
+export class BooksController {
+  @Get() // Đây là một method decorator, nó đánh dấu phương thức findAll là một route handler cho GET requests tại route '/books'
+  findAll() {
+    return 'This action returns all books';
+  }
+}
+```
+
+#### 1.2.3. Parameter Decorators
+
+**Parameter Decorators** là các decorators được áp dụng cho các tham số của phương thức, thường dùng để lấy dữ liệu từ request như body, query, params, headers, v.v.
+
+Danh sách một số parameter decorators phổ biến:
+| Decorator | Mục đích | Ví dụ |
+|-----------|----------|-------|
+| `@Body()` | Lấy dữ liệu từ request body | `create(@Body() createBookDto: CreateBookDto)` |
+| `@Query()` | Lấy dữ liệu từ query parameters | `findAll(@Query() filterDto: FilterBooksDto)` |
+| `@Param()` | Lấy dữ liệu từ route parameters | `findOne(@Param('id') id: string)` |
+| `@Headers()` | Lấy dữ liệu từ request headers | `getHeader(@Headers('authorization') auth: string)` |
+
+
+Ví dụ:
+
+```typescript
+import { Controller, Get, Param } from '@nestjs/common';
+@Controller('books')
+export class BooksController {
+  @Get(':id') // Đây là một method decorator, nó đánh dấu phương thức findOne là một route handler cho GET requests tại route '/books/:id'
+  findOne(@Param('id') id: string) { // Đây là một parameter decorator, nó đánh dấu tham số id sẽ lấy giá trị từ route parameter 'id'
+    return `This action returns a book with id ${id}`;
+  }
+}
+```
+
+---
+
+## 2. Dependency Injection trong NestJS
+
+### 2.1. Dependency Injection là gì?
+
+**Dependency Injection (DI)** là một design pattern giúp quản lý dependencies giữa các class một cách hiệu quả. Thay vì tự tạo instance của dependencies, class sẽ nhận chúng từ bên ngoài thông qua constructor hoặc setter methods.
+
+**Gốc của vấn đề xuất phát từ ví dụ dưới đây:**
+
+**Khi không sử dụng DI**: chúng ta phải tự tạo instance của `BooksService` trong `BooksController`
+
+```typescript
+export class BooksController {
+  private booksService: BooksService;
+
+  constructor() {
+    this.booksService = new BooksService(); // Tạo instance thủ công
+  }
+
+  @Get()
+  findAll() {
+    return this.booksService.findAll();
+  }
+}
+```
+
+Điều này gây ra nhiều vấn đề:
+
+- Khó kiểm soát lifecycle của dependencies
+- Không thể dễ dàng mock dependencies trong testing
+- Tăng coupling giữa các class
+
+**Khi sử dụng DI**: NestJS sẽ tự động inject instance của `BooksService` vào `BooksController`
+
+```typescript
+import { Controller, Get } from '@nestjs/common';
+@Controller('books')
+export class BooksController {
+  constructor(private readonly booksService: BooksService) {} // Dependency được inject qua constructor
+
+  @Get()
+  findAll() {
+    return this.booksService.findAll();
+  }
+}
+```
+
+### 2.2 DI container trong NestJS là gì
+
+**DI Container** là một thành phần của framework chịu trách nhiệm quản lý lifecycle và dependencies của các class trong ứng dụng. Nó cho phép bạn đăng ký các providers (services, repositories, v.v.) và tự động inject chúng vào các class khác khi cần thiết.
+
+Trong NestJS, DI container được tích hợp sẵn và hoạt động dựa trên các decorators như `@Injectable()`, `@Module()`, v.v. Khi bạn đánh dấu một class là `@Injectable()`, NestJS sẽ biết rằng class đó có thể được inject vào các class khác.
+
+### 2.3. Tổng quan về Providers
+
+### 2.3.1. Providers là gì?
+
+**Providers** là các class có thể được inject vào các class khác thông qua DI container. Chúng thường được sử dụng để chứa business logic, truy cập database, hoặc thực hiện các tác vụ khác.
+
+Bất kỳ class nào có thể được **inject** vào class khác đều là provider.
+
+**Các loại Provider phổ biến:**
+
+- Service
+- Repository
+- Factory
+- Helper
+
+### 2.3.2. `@Injectable()` Decorator
+
+Để một class có thể được inject, bạn cần đánh dấu nó bằng `@Injectable()` decorator. Điều này cho phép NestJS biết rằng class đó có thể được quản lý bởi DI container.
+
+
+```typescript
+import { Injectable } from '@nestjs/common';
+
+// Service Provider
+@Injectable()
+export class BooksService {}
+
+// Repository Provider
+@Injectable()
+export class BooksRepository {}
+
+// Helper Provider
+@Injectable()
+export class StringHelper {}
+```
+
+
+### 2.3.3 Inject Service vào Controller
+
+NestJS sử dụng **Constructor Injection** để inject dependencies.
+
+```typescript
+// src/books/books.controller.ts
+import { Controller, Get } from '@nestjs/common';
+import { BooksService } from './books.service';
+
+@Controller('books')
+export class BooksController {
+  // Inject BooksService vào controller
+  constructor(private readonly booksService: BooksService) {}
+  
+  @Get()
+  findAll() {
+    // Sử dụng service đã được inject
+    return this.booksService.findAll();
+  }
+}
+```
+
+**Giải thích:**
+
+```typescript
+constructor(private readonly booksService: BooksService) {}
+```
+
+- `private`: Tạo property private cho class
+- `readonly`: Không thể thay đổi sau khi khởi tạo
+- `booksService`: Tên biến
+- `BooksService`: Type (NestJS dùng type này để inject đúng service)
+
+**Tương đương với:**
+
+```typescript
+private readonly booksService: BooksService;
+
+constructor(booksService: BooksService) {
+  this.booksService = booksService;
+}
+```
+
+**Ví dụ inject nhiều service:**
+
+```typescript
+@Controller('orders')
+export class OrdersController {
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly booksService: BooksService,
+    private readonly usersService: UsersService,
+    private readonly emailService: EmailService,
+  ) {}
+
+  @Post()
+  async createOrder(@Body() createOrderDto: CreateOrderDto) {
+    // Sử dụng nhiều service
+    const book = await this.booksService.findOne(createOrderDto.bookId);
+    const user = await this.usersService.findOne(createOrderDto.userId);
+    const order = await this.ordersService.create(createOrderDto);
+    await this.emailService.sendOrderConfirmation(user.email, order);
+    
+    return order;
+  }
+}
+```
+
+### 2.3.4. Đăng ký Providers trong Module
+
+Để một provider có thể được inject, bạn cần đăng ký nó trong module. Bạn có thể đăng ký providers trong `providers` array của module.
+
+```typescript
+// src/books/books.module.ts
+import { Module } from '@nestjs/common';
+import { BooksController } from './books.controller';
+import { BooksService } from './books.service';
+@Module({
+  controllers: [BooksController],
+  providers: [BooksService], // Đăng ký BooksService như một provider
+})
+export class BooksModule {}
+```
+
+### 2.3.5. Scope của Providers
+
+Mặc định, các provider trong NestJS có scope là **Singleton**, nghĩa là chỉ có một instance duy nhất được tạo ra và chia sẻ trong toàn bộ ứng dụng. Tuy nhiên, bạn cũng có thể cấu hình scope của provider thành **Request** hoặc **Transient** nếu cần.
+
+- **Singleton**: Một instance duy nhất cho toàn bộ ứng dụng (mặc định)
+
+Ví dụ:
+
+```typescript
+@Injectable({ scope: Scope.DEFAULT }) // Hoặc không cần khai báo vì đây là mặc định
+export class BooksService {}
+```
+
+- **Request**: Một instance mới được tạo cho mỗi request
+
+```typescript
+@Injectable({ scope: Scope.REQUEST })
+export class BooksService {}
+```
+
+- **Transient**: Một instance mới được tạo mỗi khi provider được inject
+
+```typescript
+@Injectable({ scope: Scope.TRANSIENT })
+export class BooksService {}
+```
+
+**Khi nào thì nên dùng loại nào?**
+
+- **Singleton**: Phù hợp cho hầu hết các service, đặc biệt là những service không giữ state hoặc có thể chia sẻ state giữa các request.
+
+- **Request**: Phù hợp cho các service cần giữ state riêng biệt cho mỗi request, ví dụ như service quản lý session hoặc request-specific data.
+
+- **Transient**: Phù hợp cho các service cần tạo instance mới mỗi khi được sử dụng, ví dụ như service thực hiện các tác vụ ngắn hạn hoặc có thể gây ra side effects nếu chia sẻ instance.
+
+
+---
+
+## 3. Lifecycle trong NestJS
+
+### 3.1. Vòng đời của một Request
 
 Khi một request đến NestJS application, nó sẽ đi qua các bước sau theo thứ tự:
 
@@ -51,7 +360,7 @@ Outgoing Response
 - **Interceptors (after)**: Biến đổi response, thêm logic sau khi xử lý
 - **Exception Filters**: Bắt và xử lý lỗi
 
-### 1.2. Ví dụ minh họa Request Lifecycle
+### 3.2. Ví dụ minh họa Request Lifecycle
 
 Dưới đây là ví dụ minh họa về cách các thành phần trong `lifecycle` hoạt động cùng nhau.
 Để bạn nắm được `Data Flow` và thứ tự thực thi của từng thành phần.
@@ -210,7 +519,7 @@ Console output:
 HTTP GET /books 200 - 15ms
 ```
 
-### 1.3. Lifecycle Events
+### 3.3. Lifecycle Events
 
 Xem chi tiết [Lifecycle Events trong NestJS](./lifecycle-event.md)
 
@@ -268,9 +577,10 @@ export class BooksService implements OnModuleInit, OnModuleDestroy {
 
 Tài liệu chính thức: [Lifecycle Events](https://docs.nestjs.com/fundamentals/lifecycle-events)
 
-### 1.4. Tổng quan các thành phần trong Lifecycle
 
-#### 1.4.1 Middleware
+### 3.4. Tổng quan các thành phần trong Lifecycle
+
+#### 3.4.1 Middleware
 
 **Middleware là gì?**
 
@@ -299,7 +609,7 @@ export class LoggerMiddleware implements NestMiddleware {
 - Xác thực (authentication setup)
 - Thêm headers chung
 
-#### 1.4.2 Guards
+#### 3.4.2 Guards
 
 **Guard là gì?**
 
@@ -332,7 +642,7 @@ export class AuthGuard implements CanActivate {
 - Xác thực (Authentication)
 - Phân quyền (Authorization)
 
-#### 1.4.3 Interceptors
+#### 3.4.3 Interceptors
 
 **Interceptor là gì?**
 
@@ -370,7 +680,48 @@ Bạn sử dụng Interceptor khi cần cần can thiệp vào quá trình xử 
 - Caching
 - Measuring execution time
 
-### 1.5. So sánh Middleware vs Guard vs Interceptor (Khi nào dùng cái nào?)
+#### 3.4.4 Pipes
+
+**Pipe là gì?**
+
+Pipes là các lớp dùng để validate và transform dữ liệu đầu vào. Chúng được thực thi sau Guards và trước khi controller xử lý request.
+
+**Khi nào sử dụng Pipes?**
+- Validation: Kiểm tra dữ liệu đầu vào có hợp lệ không
+- Transformation: Chuyển đổi dữ liệu đầu vào sang định dạng mong muốn (ví dụ: string -> number)
+
+**Các loại Build-in Pipes:**
+
+> Xem chi tiết tại [NestJS Pipes Documentation](https://docs.nestjs.com/pipes#built-in-pipes)
+
+Ví dụ:
+
+```typescript
+//Giả sử chúng ta có một DTO với các validation rules
+@Post()
+create(@Body(new ValidationPipe()) createBookDto: CreateBookDto) {
+  // ...
+}
+```
+
+**Custom Pipe:**
+
+Bạn cũng có thể tạo custom pipe để thực hiện các logic validate hoặc transform phức tạp hơn:
+
+```typescript
+import { PipeTransform, Injectable } from '@nestjs/common';
+
+@Injectable()
+export class MyCustomPipe implements PipeTransform {
+  transform(value: any) {
+    // Logic để transform dữ liệu
+    return value;
+  }
+}
+```
+
+
+### 3.5. So sánh Middleware vs Guard vs Interceptor (Khi nào dùng cái nào?)
 
 - **Middleware**:
   - Chạy sớm nhất trong vòng đời request
@@ -389,415 +740,6 @@ Bạn sử dụng Interceptor khi cần cần can thiệp vào quá trình xử 
 
 ---
 
-## 2. Validation và Transformation với DTO
-
-### 2.1. DTO (Data Transfer Object) là gì?
-
-**DTO** là một design pattern dùng để định nghĩa cấu trúc dữ liệu được truyền giữa các layers của ứng dụng. Trong NestJS, DTO giúp:
-
-- Định nghĩa schema cho dữ liệu đầu vào/đầu ra
-- Validate dữ liệu tự động
-- Transform dữ liệu (type conversion)
-- Tạo documentation tự động (với Swagger)
-- Type safety với TypeScript
-
-**Tại sao cần DTO?**
-
-Không có DTO:
-
-```typescript
-@Post()
-create(@Body() body: any) {
-  // body có thể là bất cứ thứ gì
-  // Không có type safety
-  // Không có validation
-  // Dễ gây lỗi
-  return this.booksService.create(body);
-}
-```
-
-Có DTO:
-
-```typescript
-@Post()
-create(@Body() createBookDto: CreateBookDto) {
-  // createBookDto đã được validate
-  // Type-safe
-  // IDE có autocomplete
-  return this.booksService.create(createBookDto);
-}
-```
-
-### 2.2. Class-validator và class-transformer
-
-**Cài đặt:**
-
-```bash
-npm install class-validator class-transformer
-```
-
-**class-validator**: Thư viện để validate dữ liệu dựa trên decorators
-**class-transformer**: Thư viện để transform plain objects thành class instances
-
-**Các decorators phổ biến:**
-
-| Decorator | Mục đích | Ví dụ |
-|-----------|----------|-------|
-| `@IsString()` | Validate là string | `@IsString() title: string;` |
-| `@IsNumber()` | Validate là number | `@IsNumber() pages: number;` |
-| `@IsInt()` | Validate là integer | `@IsInt() age: number;` |
-| `@IsEmail()` | Validate email | `@IsEmail() email: string;` |
-| `@IsNotEmpty()` | Không được rỗng | `@IsNotEmpty() title: string;` |
-| `@IsOptional()` | Field tùy chọn | `@IsOptional() description?: string;` |
-| `@MinLength(n)` | Độ dài tối thiểu | `@MinLength(3) title: string;` |
-| `@MaxLength(n)` | Độ dài tối đa | `@MaxLength(100) title: string;` |
-| `@Min(n)` | Giá trị tối thiểu | `@Min(1) pages: number;` |
-| `@Max(n)` | Giá trị tối đa | `@Max(10000) pages: number;` |
-| `@IsArray()` | Validate là array | `@IsArray() genres: string[];` |
-| `@ArrayMinSize(n)` | Array size tối thiểu | `@ArrayMinSize(1) genres: string[];` |
-| `@ValidateNested()` | Validate nested object | `@ValidateNested() author: AuthorDto;` |
-
-### 2.3. Tạo DTO với Validation
-
-Ví dụ về DTO cho entity "Book":
-
-**CreateBookDto:**
-
-```typescript
-// src/books/dto/create-book.dto.ts
-import {
-  IsString,
-  IsNotEmpty,
-  MinLength,
-  MaxLength,
-  IsInt,
-  Min,
-  Max,
-  IsArray,
-  ArrayMinSize,
-  IsOptional,
-} from 'class-validator';
-
-export class CreateBookDto {
-  @IsString({ message: 'Tên sách phải là chuỗi ký tự' })
-  @IsNotEmpty({ message: 'Tên sách không được để trống' })
-  @MinLength(3, { message: 'Tên sách phải có ít nhất 3 ký tự' })
-  @MaxLength(100, { message: 'Tên sách không được vượt quá 100 ký tự' })
-  title: string;
-
-  @IsString({ message: 'Mô tả phải là chuỗi ký tự' })
-  @IsNotEmpty({ message: 'Mô tả không được để trống' })
-  @MinLength(10, { message: 'Mô tả phải có ít nhất 10 ký tự' })
-  @MaxLength(500, { message: 'Mô tả không được vượt quá 500 ký tự' })
-  description: string;
-
-  @IsInt({ message: 'Số trang phải là số nguyên' })
-  @Min(1, { message: 'Số trang phải lớn hơn hoặc bằng 1' })
-  @Max(10000, { message: 'Số trang phải nhỏ hơn hoặc bằng 10000' })
-  pages: number;
-
-  @IsArray({ message: 'Thể loại phải là một mảng' })
-  @ArrayMinSize(1, { message: 'Sách phải có ít nhất 1 thể loại' })
-  @IsString({ each: true, message: 'Mỗi thể loại phải là chuỗi ký tự' })
-  genres: string[];
-
-  @IsString({ message: 'ISBN phải là chuỗi ký tự' })
-  @IsOptional()
-  isbn?: string;
-
-  @IsInt({ message: 'Năm xuất bản phải là số nguyên' })
-  @Min(1000, { message: 'Năm xuất bản không hợp lệ' })
-  @Max(new Date().getFullYear(), { message: 'Năm xuất bản không được lớn hơn năm hiện tại' })
-  @IsOptional()
-  publishedYear?: number;
-}
-```
-
-**UpdateBookDto:**
-
-```typescript
-// src/books/dto/update-book.dto.ts
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateBookDto } from './create-book.dto';
-
-// PartialType tự động làm tất cả các fields trở thành optional
-export class UpdateBookDto extends PartialType(CreateBookDto) {}
-
-// Tương đương với:
-// export class UpdateBookDto {
-//   @IsOptional()
-//   @IsString()
-//   @MinLength(3)
-//   @MaxLength(100)
-//   title?: string;
-//
-//   @IsOptional()
-//   @IsString()
-//   @MinLength(10)
-//   @MaxLength(500)
-//   description?: string;
-//   
-//   // ... các fields khác
-// }
-```
-
-**FilterBooksDto:**
-
-```typescript
-// src/books/dto/filter-books.dto.ts
-import { IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
-import { Type } from 'class-transformer';
-
-export class FilterBooksDto {
-  @IsOptional()
-  @IsString()
-  genre?: string;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  minPages?: number;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Max(10000)
-  maxPages?: number;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit?: number = 10;
-}
-```
-
-### 2.4. Sử dụng ValidationPipe
-
-Muốn kích hoạt validation tự động, ta sử dụng `ValidationPipe` của NestJS và cấu hình trong `main.ts`.
-
-**Global ValidationPipe - Áp dụng cho toàn bộ ứng dụng:**
-
-```typescript
-// src/main.ts
-import { ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  // Cấu hình ValidationPipe global
-  app.useGlobalPipes(
-    new ValidationPipe({
-      // Tự động loại bỏ các properties không có trong DTO
-      whitelist: true,
-      
-      // Throw error nếu có property không hợp lệ
-      forbidNonWhitelisted: true,
-      
-      // Tự động transform payload thành DTO instance
-      transform: true,
-      
-      // Tự động convert types (string -> number)
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-      
-      // Hiển thị error messages (set true trong production để ẩn)
-      disableErrorMessages: false,
-      
-      // Cấu hình validation error response
-      validationError: {
-        target: false, // Không include target object trong error
-        value: false,  // Không include value trong error
-      },
-    })
-  );
-
-  await app.listen(3000);
-}
-bootstrap();
-```
-
-**Các options quan trọng của ValidationPipe:**
-
-| Option | Mặc định | Mô tả |
-|--------|----------|-------|
-| `whitelist` | false | Tự động xóa properties không có trong DTO |
-| `forbidNonWhitelisted` | false | Throw error nếu có property không hợp lệ |
-| `transform` | false | Transform payload thành DTO instance |
-| `transformOptions` | {} | Options cho class-transformer |
-| `disableErrorMessages` | false | Ẩn error messages (dùng cho production) |
-| `skipMissingProperties` | false | Bỏ qua validation cho undefined fields |
-| `skipNullProperties` | false | Bỏ qua validation cho null fields |
-| `skipUndefinedProperties` | false | Bỏ qua validation cho undefined fields |
-
-**Ví dụ về whitelist và forbidNonWhitelisted:**
-
-```typescript
-// CreateBookDto chỉ có: title, description, pages, genres
-
-// Request body:
-{
-  "title": "Clean Code",
-  "description": "A handbook...",
-  "pages": 464,
-  "genres": ["Programming"],
-  "extraField": "This should not be here",
-  "anotherField": 123
-}
-
-// Với whitelist: true, forbidNonWhitelisted: false
-// => extraField và anotherField sẽ bị loại bỏ im lặng
-
-// Với whitelist: true, forbidNonWhitelisted: true
-// => Throw BadRequestException: "property extraField should not exist"
-```
-
-**Controller-level hoặc Route-level ValidationPipe:**
-
-```typescript
-// src/books/books.controller.ts
-import { 
-  Controller, 
-  Post, 
-  Body, 
-  UsePipes, 
-  ValidationPipe 
-} from '@nestjs/common';
-import { CreateBookDto } from './dto/create-book.dto';
-
-@Controller('books')
-export class BooksController {
-  // Áp dụng cho một route cụ thể
-  @Post()
-  @UsePipes(new ValidationPipe({ transform: true }))
-  create(@Body() createBookDto: CreateBookDto) {
-    console.log(createBookDto instanceof CreateBookDto); // true
-    return { message: 'Book created', data: createBookDto };
-  }
-
-  // Áp dụng cho một parameter cụ thể
-  @Post('alternative')
-  createAlternative(
-    @Body(new ValidationPipe({ transform: true })) 
-    createBookDto: CreateBookDto
-  ) {
-    return { message: 'Book created', data: createBookDto };
-  }
-}
-```
-
-**Ví dụ validation thực tế:**
-
-```typescript
-// src/books/books.controller.ts
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Put, 
-  Delete,
-  Body, 
-  Param, 
-  Query,
-  ParseIntPipe,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
-import { BooksService } from './books.service';
-import { CreateBookDto } from './dto/create-book.dto';
-import { UpdateBookDto } from './dto/update-book.dto';
-import { FilterBooksDto } from './dto/filter-books.dto';
-
-@Controller('books')
-export class BooksController {
-  constructor(private readonly booksService: BooksService) {}
-
-  @Get()
-  findAll(@Query() filterDto: FilterBooksDto) {
-    console.log('4. Pipe: Validating and transforming query params');
-    // filterDto đã được validate và transform
-    return this.booksService.findAll(filterDto);
-  }
-
-  @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    // ParseIntPipe tự động convert string -> number và validate
-    console.log(typeof id); // number
-    return this.booksService.findOne(id);
-  }
-
-  @Post()
-  @HttpCode(HttpStatus.CREATED)
-  create(@Body() createBookDto: CreateBookDto) {
-    console.log('4. Pipe: Validating and transforming body');
-    // createBookDto đã được validate
-    return this.booksService.create(createBookDto);
-  }
-
-  @Put(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateBookDto: UpdateBookDto,
-  ) {
-    return this.booksService.update(id, updateBookDto);
-  }
-
-  @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.booksService.remove(id);
-  }
-}
-```
-
-**Test validation:**
-
-Xem tại file REST Client [test-validation-book.http](./test-validation-book.http)
-
-### 2.5. Custom Validation Pipe
-
-### 2.5.1 **Pipe là gì?**
-
-Pipe là một class có chức năng xử lý dữ liệu đầu vào (input data) trước khi nó được truyền đến controller. Pipe có thể thực hiện các nhiệm vụ như:
-
-- Validate dữ liệu
-- Transform dữ liệu (chuyển đổi kiểu dữ liệu)
-
-> Xem tài liệu chính thức về [Pipes trong NestJS](https://docs.nestjs.com/pipes)
-
-### 2.5.2 Cách sử dụng Built-in Pipes
-
-NestJS cung cấp một số built-in pipes phổ biến như:
-
-- `ValidationPipe`: Dùng để validate dữ liệu dựa trên DTO và class-validator
-- `ParseIntPipe`: Chuyển đổi chuỗi thành số nguyên và validate
-
-**Sử dụng ParseIntPipe:**
-
-```typescript
-@Get(':id')
-findOne(@Param('id', ParseIntPipe) id: number) {
-  console.log(typeof id); // number
-  return this.booksService.findOne(id);
-}
-```
-
-### 2.5.1 Tạo Custom Pipes
-
-Xem chi tiết [Custom Pipes trong NestJS](./custom-pipe.md)
-
----
 
 ## 3. Error Handling
 
@@ -1000,7 +942,7 @@ export class DuplicateISBNException extends HttpException {
 }
 ```
 
-### 3.2. Exception Filters
+### 3.3. Exception Filters
 
 **Exception Filters là gì?**
 
@@ -1171,428 +1113,9 @@ create(@Body() createBookDto: CreateBookDto) {
 
 ---
 
+## 4. Execution Context
 
-## 4. Handling Responses
-
-Khi xây dựng API, việc quản lý requests và responses một cách nhất quán và có cấu trúc là rất quan trọng. Điều này giúp cải thiện trải nghiệm người dùng, dễ dàng mở rộng và bảo trì mã nguồn.
-
-### 4.1. Vấn đề cân giải quyết
-
-Khi một dự án có **nhiều endpoints**, **nhiều người** phát triển, việc đảm bảo rằng tất cả responses đều có cấu trúc giống nhau có thể trở nên khó khăn. Một số vấn đề phổ biến bao gồm:
-
-- **Inconsistent Response Formats:** Các endpoints trả về các cấu trúc response
-khác nhau, gây khó khăn cho client khi xử lý dữ liệu.
-- **Lack of Metadata:** Thiếu thông tin bổ sung như status codes, messages, timestamps, pagination info.
-- **Error Handling:** Không có cách chuẩn để trả về lỗi, dẫn đến việc client không thể xử lý lỗi một cách hiệu quả.
-
-Ví dụ về response không nhất quán:
-
-Endpoint A trả về:
-
-```json
-{
-  "id": 1,
-  "title": "Clean Code",
-  "description": "A handbook...",
-  "pages": 464,
-  "genres": ["Programming"]
-}
-```
-
-Trong khi Endpoint B trả về:
-
-```json
-{
-  "data": {
-    "id": 2,
-    "title": "The Pragmatic Programmer",
-    "description": "Your journey to mastery...",
-    "pages": 352,
-    "genres": ["Programming"]
-  },
-  "message": "Book retrieved successfully"
-}
-```
-
-Điều này gây khó khăn cho client khi phải xử lý các định dạng khác nhau.
-
-=> Giải pháp là áp dụng một **response format chuẩn** cho tất cả các endpoints, bao gồm các thông tin như status code, message, data, và metadata khác nếu cần thiết.
-
-### 4.2. Transform Response
-
-`Interceptor` trong NestJS cho phép bạn can thiệp vào quá trình xử lý request-response. Bạn có thể sử dụng interceptor để **transform** response từ controller trước khi gửi về client, đảm bảo rằng tất cả responses đều tuân theo một cấu trúc nhất quán.
-
-**Sử dụng Interceptor để transform response:**
-
-```typescript
-// src/common/interceptors/transform.interceptor.ts
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
-
-export interface Response<T> {
-  success: boolean;
-  statusCode: number;
-  message: string;
-  data: T;
-  timestamp: string;
-}
-
-@Injectable()
-export class TransformInterceptor<T>
-  implements NestInterceptor<T, Response<T>>
-{
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Observable<Response<T>> {
-    const ctx = context.switchToHttp();
-    const response = ctx.getResponse();
-
-    return next.handle().pipe(
-      map((data) => ({
-        success: true,
-        statusCode: response.statusCode,
-        message: data?.message || 'Request successful',
-        data: data?.data || data,
-        timestamp: new Date().toISOString(),
-      })),
-    );
-  }
-}
-```
-
-**Áp dụng global:**
-
-Giúp đảm bảo tất cả responses đều được transform.
-
-```typescript
-// src/main.ts
-import { TransformInterceptor } from './common/interceptors/transform.interceptor';
-
-app.useGlobalInterceptors(new TransformInterceptor());
-```
-
-**Response trước khi transform:**
-
-```json
-{
-  "id": 1,
-  "title": "Clean Code",
-  "description": "A handbook...",
-  "pages": 464,
-  "genres": ["Programming"]
-}
-```
-
-**Response sau khi transform:**
-
-```json
-{
-  "success": true,
-  "statusCode": 200,
-  "message": "Request successful",
-  "data": {
-    "id": 1,
-    "title": "Clean Code",
-    "description": "A handbook...",
-    "pages": 464,
-    "genres": ["Programming"]
-  },
-  "timestamp": "2024-01-20T10:30:00.000Z"
-}
-```
-
-### 4.3. Custom Response Format
-
-Trên đây là format response chung. Tuy nhiên, trong nhiều trường hợp, bạn muốn có các định dạng response tùy chỉnh hơn theo rule riêng của dự án.
-
-Bạn có thể tạo các **Response DTOs** để định nghĩa cấu trúc response cho từng trường hợp cụ thể như:
-
-**Tạo Response DTO:**
-
-```typescript
-// src/common/dto/response.dto.ts
-export class PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
-}
-
-export class PaginatedResponseDto<T> {
-  success: boolean;
-  data: T[];
-  meta: PaginationMeta;
-  message?: string;
-  timestamp: string;
-
-  constructor(
-    data: T[],
-    page: number,
-    limit: number,
-    total: number,
-    message?: string,
-  ) {
-    this.success = true;
-    this.data = data;
-    this.message = message || 'Success';
-    this.timestamp = new Date().toISOString();
-
-    const totalPages = Math.ceil(total / limit);
-
-    this.meta = {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-    };
-  }
-}
-
-export class ApiResponseDto<T> {
-  success: boolean;
-  data: T;
-  message?: string;
-  timestamp: string;
-
-  constructor(data: T, message?: string) {
-    this.success = true;
-    this.data = data;
-    this.message = message || 'Success';
-    this.timestamp = new Date().toISOString();
-  }
-}
-```
-
-**BookService trả về dữ liệu:**
-
-```typescript
-// src/books/books.service.ts
-// Giả sử phương thức findAll trả về dữ liệu với pagination
-findAll(filterDto?: FilterBooksDto) {
-  // ...logic lọc và phân trang
-  return {
-    data: paginatedResult,
-    meta: {
-      page,
-      limit,
-      total: result.length,
-      totalPages: Math.ceil(result.length / limit),
-    },
-  };
-}
-```
-
-**Sử dụng trong Book Controller:**
-
-```typescript
-// src/books/books.controller.ts
-import { PaginatedResponseDto, ApiResponseDto } from '../common/dto/response.dto';
-import { BookEntity } from './entities/book.entity';
-
-@Controller('books')
-export class BooksController {
-  constructor(private readonly booksService: BooksService) {}
-
-  @Get()
-  findAll(@Query() filterDto: FilterBooksDto) {
-    const result = this.booksService.findAll(filterDto);
-
-    const books = result.data.map(book => new BookEntity(book));
-
-    return new PaginatedResponseDto(
-      books,
-      result.meta.page,
-      result.meta.limit,
-      result.meta.total,
-      'Lấy danh sách sách thành công',
-    );
-  }
-
-  @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    const book = this.booksService.findOne(id);
-    return new ApiResponseDto(
-      new BookEntity(book),
-      'Lấy thông tin sách thành công',
-    );
-  }
-
-  @Post()
-  @HttpCode(HttpStatus.CREATED)
-  create(@Body() createBookDto: CreateBookDto) {
-    const book = this.booksService.create(createBookDto);
-    return new ApiResponseDto(
-      new BookEntity(book),
-      'Tạo sách mới thành công',
-    );
-  }
-
-  @Put(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateBookDto: UpdateBookDto,
-  ) {
-    const book = this.booksService.update(id, updateBookDto);
-    return new ApiResponseDto(
-      new BookEntity(book),
-      'Cập nhật sách thành công',
-    );
-  }
-
-  @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id', ParseIntPipe) id: number) {
-    this.booksService.remove(id);
-  }
-}
-```
-
-**Response mẫu cho GET /books:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "title": "Clean Code",
-      "description": "A handbook of agile software craftsmanship",
-      "pages": 464,
-      "genres": ["Programming", "Software Engineering"],
-      "createdAt": "2024-01-20T10:00:00.000Z",
-      "updatedAt": "2024-01-20T10:00:00.000Z",
-      "summary": "Clean Code - 464 trang"
-    },
-    {
-      "id": 2,
-      "title": "The Pragmatic Programmer",
-      "description": "Your journey to mastery",
-      "pages": 352,
-      "genres": ["Programming"],
-      "createdAt": "2024-01-20T10:05:00.000Z",
-      "updatedAt": "2024-01-20T10:05:00.000Z",
-      "summary": "The Pragmatic Programmer - 352 trang"
-    }
-  ],
-  "meta": {
-    "page": 1,
-    "limit": 10,
-    "total": 2,
-    "totalPages": 1,
-    "hasNextPage": false,
-    "hasPreviousPage": false
-  },
-  "message": "Lấy danh sách sách thành công",
-  "timestamp": "2024-01-20T10:30:00.000Z"
-}
-```
-
----
-
-### 4.4. Best Practices cho Response Handling
-
-- **Consistency is Key:** Đảm bảo tất cả endpoints trả về response theo cùng một cấu trúc.
-- **Use DTOs for Responses:** Sử dụng Data Transfer Objects (DTOs) để định nghĩa cấu trúc response rõ ràng và `chỉ trả về những fields cần thiết`.
-- **Leverage Interceptors:** Sử dụng interceptors để tự động transform responses.
-- **Include Metadata:** Cung cấp thông tin bổ sung như pagination, timestamps để hỗ trợ client.
-- **Handle Errors Gracefully:** Sử dụng exception filters để trả về lỗi một cách nhất quán và có cấu trúc.
-- **Only Expose Necessary Data:** Sử dụng serialization để `loại bỏ các fields nhạy cảm` khỏi response.
-
-Ví dụ khi bạn cần trả về thông tin chi tiết của một cuốn sách thì cần tạo một `Response DTO` riêng:
-
-```typescript
-// src/books/dto/book-detail-response.dto.ts
-import { Exclude, Expose, Transform } from 'class-transformer';
-@Exclude()
-export class BookDetailResponseDto {
-  @Expose()
-  id: number;
-
-  @Expose()
-  title: string;
-
-  @Expose()
-  description: string;
-
-  @Expose()
-  pages: number;
-
-  @Expose()
-  genres: string[];
-
-  @Expose()
-  isbn?: string;
-
-  @Expose()
-  publishedYear?: number;
-
-  @Expose()
-  @Transform(({ value }) => value.toISOString())
-  createdAt: Date;
-
-  @Expose()
-  @Transform(({ value }) => value.toISOString())
-  updatedAt: Date;
-
-  @Expose()
-  get summary(): string {
-    return `${this.title} - ${this.pages} trang`;
-  }
-
-  @Expose()
-  additionalInfo: string; // Thông tin chi tiết bổ sung
-
-  constructor(partial: Partial<BookDetailResponseDto>) {
-    Object.assign(this, partial);
-  }
-}
-```
-
-Vì trên UI bạn cần hiển thị thêm thông tin chi tiết về sách, nên bạn tạo một DTO riêng để phục vụ cho mục đích này.
-
-Còn trên UI về Quản lý Danh Sách Books bạn chỉ cần hiển thị các thông tin cơ bản, nên bạn sử dụng `Response DTO` riêng cho mục đích đó.
-
-```typescript
-// src/books/dto/book-list-response.dto.ts
-import { Exclude, Expose, Transform } from 'class-transformer';
-@Exclude()
-export class BookListResponseDto {
-  @Expose()
-  id: number;
-
-  @Expose()
-  title: string;
-
-  @Expose()
-  @Transform(({ value }) => value.toISOString())
-  createdAt: Date;
-
-  @Expose()
-  @Transform(({ value }) => value.toISOString())
-  updatedAt: Date;
-
-  constructor(partial: Partial<BookListResponseDto>) {
-    Object.assign(this, partial);
-  }
-}
-```
-
-chuyển qua bài 9 phần nội dung dưới đây.
-
-## 5. Execution Context và Metadata với Decorators
-
-### 5.1. Execution Context là gì?
+### 4.1. Execution Context là gì?
 
 **ExecutionContext** là một wrapper object chứa thông tin về request hiện tại. Nó cung cấp các methods để truy cập:
 
@@ -1617,7 +1140,7 @@ export interface ArgumentsHost {
 }
 ```
 
-### 5.2. Sử dụng Execution Context trong Guards
+### 4.2. Sử dụng Execution Context trong Guards
 
 **RolesGuard với Metadata:**
 
@@ -1675,7 +1198,7 @@ export class BooksController {
 }
 ```
 
-### 5.3. Sử dụng Execution Context trong Interceptors
+### 4.3. Sử dụng Execution Context trong Interceptors
 
 **Timeout Interceptor:**
 
@@ -1712,7 +1235,7 @@ export class TimeoutInterceptor implements NestInterceptor {
 }
 ```
 
-### 5.4. Metadata và Custom Decorators
+### 4.4. Metadata và Custom Decorators
 
 **Metadata** là dữ liệu bổ sung gắn vào class, method, hoặc parameter. NestJS sử dụng `reflect-metadata` để lưu trữ và truy xuất metadata.
 
@@ -1771,7 +1294,7 @@ export class BooksController {
 }
 ```
 
-### 5.5. Tạo Custom Decorators để lấy thông tin từ Request
+### 4.5. Tạo Custom Decorators để lấy thông tin từ Request
 
 **@User() Decorator:**
 
@@ -1874,7 +1397,7 @@ findAll(@Cookies('sessionId') sessionId: string) {
 }
 ```
 
-### 5.6. Kết hợp nhiều Decorators
+### 4.6. Kết hợp nhiều Decorators
 
 ```typescript
 // src/books/books.controller.ts

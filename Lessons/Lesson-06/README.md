@@ -1,4 +1,4 @@
-# Lesson 06 - TypeORM Advanced: Hướng Dẫn Chi Tiết
+# Lesson 06 - TypeORM Advanced
 
 ## Mục Lục
 1. [Quan hệ dữ liệu](#1-quan-hệ-dữ-liệu)

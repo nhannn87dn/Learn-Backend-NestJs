@@ -60,6 +60,11 @@ DELETE /api/products/10
 | DELETE | Xóa               | Xóa sản phẩm           |
 
 
+**Endpoint** là URL đại diện cho một resource cụ thể.
+
+Ví dụ: Endpoint `/api/products` đại diện cho resource "products". Mỗi HTTP method sẽ thực hiện một hành động khác nhau trên resource đó.
+
+
 ### 1.4 Nguyên tắc thiết kế RESTful API
 
 #### Nguyên tắc 1: Client-Server Architecture
@@ -88,13 +93,48 @@ GET /books?page=2&limit=10  // Mỗi request độc lập
 
 Response có thể được cache để cải thiện hiệu năng.
 
+Ví dụ:
+
+```typescript
+// ✅ ĐÚNG - Cho phép cache
+GET /products
+Cache-Control: max-age=3600  // Cache trong 1 giờ
+// ❌ SAI - Không cho phép cache
+GET /products
+Cache-Control: no-cache
+```
+
+
 #### Nguyên tắc 4: Uniform Interface
 
 Giao diện thống nhất, dễ hiểu và dự đoán.
 
+Ví dụ:
+
+```typescript
+// ✅ ĐÚNG - Giao diện thống nhất
+GET /users          // Lấy danh sách users
+POST /users         // Tạo user mới
+GET /users/1        // Lấy user có id=1
+PUT /users/1        // Cập nhật user có id=1
+DELETE /users/1     // Xóa user có id=1
+// ❌ SAI - Giao diện không thống nhất
+GET /getAllUsers
+POST /createUser
+GET /getUserById/1
+POST /updateUser/1
+POST /deleteUser/1
+```
+
 #### Nguyên tắc 5: Layered System
 
 Hệ thống có thể có nhiều tầng (load balancer, cache, API gateway...).
+
+```
+Client ←→ API Gateway ←→ Load Balancer ←→ Server
+```
+
+
 
 ### 1.5 HTTP Methods
 
@@ -140,6 +180,7 @@ Body: {
 // DELETE - Xóa
 DELETE /api/products/5
 ```
+
 
 ### 1.6 Status Codes phổ biến
 
@@ -224,6 +265,23 @@ POST   /api/deleteBook/1
 
 **Module** trong NestJS là một class được đánh dấu bằng decorator `@Module()`. Module giúp tổ chức code thành các khối chức năng liên quan, dễ quản lý và tái sử dụng.
 
+
+Ví dụ minh họa `BooksModule`:
+
+```typescript
+// src/books/books.module.ts
+import { Module } from '@nestjs/common';
+import { BooksController } from './books.controller';
+import { BooksService } from './books.service';
+
+@Module({
+  controllers: [BooksController],
+  providers: [BooksService],
+})
+export class BooksModule {}
+```
+
+
 **Ví dụ thực tế:**
 Trong ứng dụng quản lý thư viện, bạn có thể có:
 
@@ -257,7 +315,7 @@ export class AppModule {}
 
 #### Feature Module
 
-Module chức năng, tập trung vào một domain cụ thể.
+Module chức năng, tập trung vào một domain cụ thể. `Domain` = lĩnh vực nghiệp vụ (business domain) mà hệ thống hoặc module đang giải quyết.
 
 ```typescript
 // src/books/books.module.ts
@@ -330,7 +388,7 @@ Trong các dự án NestJS lớn, việc tổ chức modules là rất quan tr�
 
 Ví dụ cấu trúc thư mục:
 
-```src/
+```
 src/
 ├── app.module.ts          // Root Module
 ├── books/
@@ -428,6 +486,10 @@ export class BooksController {
 ```
 
 ### 3.2 Routing trong NestJS
+
+Routing là quá trình xác định cách ứng dụng phản hồi các yêu cầu từ client dựa trên URL và HTTP method.
+Nó khác biệt với cách làm trên Express.js, NestJS sử dụng **decorators** để định nghĩa routes một cách rõ ràng và dễ hiểu.
+Bạn không cần phải tạo nhưng file routes riêng biệt như trong Express, mà chỉ cần sử dụng decorators ngay trong controller.
 
 #### 3.2.1 Decorators cho HTTP Methods
 
@@ -860,7 +922,7 @@ export class BooksRepository {}
 
 // Helper Provider
 @Injectable()
-export class EmailService {}
+export class StringHelper {}
 ```
 
 ### 4.3 Injectable Decorator
@@ -944,38 +1006,6 @@ export class OrdersController {
 }
 ```
 
-### 4.5 DTOs (Data Transfer Objects)
-
-DTOs định nghĩa cấu trúc dữ liệu được truyền qua network.
-
-```typescript
-// src/books/dto/create-book.dto.ts
-export class CreateBookDto {
-  title: string;
-  author: string;
-  price: number;
-  category: string;
-  publishedYear: number;
-}
-
-// src/books/dto/update-book.dto.ts
-export class UpdateBookDto {
-  title?: string;
-  author?: string;
-  price?: number;
-  category?: string;
-  publishedYear?: number;
-}
-
-// src/books/dto/filter-books.dto.ts
-export class FilterBooksDto {
-  category?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  page?: number;
-  limit?: number;
-}
-```
 
 ---
 

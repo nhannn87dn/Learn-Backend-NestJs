@@ -1,9 +1,133 @@
 # 📘 Lesson 01 – Kiến thức nền cho NestJS RESTful API
 
+> **Mục tiêu buổi học**
+> Sau bài này, người học sẽ:
+>
+> * Hiểu **Backend là gì** và vai trò của Backend Developer
+> * Hiểu **Node.js** hoạt động như thế nào (Event Loop, Non-blocking I/O)
+> * Nắm vững **JavaScript ES6+** cần thiết cho NestJS
+> * Nắm vững **TypeScript cơ bản** – ngôn ngữ chính của NestJS
+> * Phân biệt **NPM, Yarn, PNPM** và biết cách dùng Package.json
 
-## 1️⃣ Node.js là gì?
+---
 
-### 1.1 Khái niệm Node.js
+## 1️⃣ Backend là gì?
+
+### 1.1 Kiến trúc tổng thể của Web Application
+
+Một ứng dụng web hiện đại gồm 3 tầng chính:
+
+```
+┌─────────────────┐        HTTP Request         ┌─────────────────┐
+│    Frontend     │  ─────────────────────────► │    Backend      │
+│  (Browser/App)  │ ◄─────────────────────────  │    (Server)     │
+└─────────────────┘        HTTP Response         └────────┬────────┘
+   HTML/CSS/JS                                            │
+   React/Vue/Angular                                      │ SQL / ORM
+                                                 ┌────────▼────────┐
+                                                 │    Database     │
+                                                 │ PostgreSQL/     │
+                                                 │ MongoDB/Redis   │
+                                                 └─────────────────┘
+```
+
+📌 **Frontend** (Client-side):
+* Chạy trên trình duyệt hoặc mobile app
+* Hiển thị giao diện cho người dùng
+* Giao tiếp với Backend qua HTTP/API
+
+📌 **Backend** (Server-side):
+* Chạy trên server, **không hiển thị trực tiếp** với người dùng
+* Xử lý toàn bộ business logic
+* Kết nối và thao tác với database
+
+📌 **Database**:
+* Lưu trữ dữ liệu lâu dài
+* Trả dữ liệu theo yêu cầu của Backend
+
+---
+
+### 1.2 Backend làm gì?
+
+| Nhiệm vụ | Ví dụ cụ thể |
+| -------- | ------------ |
+| Nhận & xử lý request | `POST /auth/login` – kiểm tra thông tin đăng nhập |
+| Business logic | Tính phí vận chuyển, kiểm tra tồn kho |
+| Truy xuất database | Lấy danh sách sản phẩm từ PostgreSQL |
+| Authentication | Tạo và xác thực JWT token |
+| Authorization | Kiểm tra quyền truy cập dữ liệu |
+| Trả response (JSON) | `{ "data": [...], "statusCode": 200 }` |
+
+📌 **Ví dụ luồng đăng nhập:**
+
+```
+Client                    Backend                   Database
+  │                          │                          │
+  │  POST /auth/login        │                          │
+  │  { email, password }     │                          │
+  │─────────────────────────►│                          │
+  │                          │  SELECT * FROM users     │
+  │                          │  WHERE email = ?         │
+  │                          │─────────────────────────►│
+  │                          │◄─────────────────────────│
+  │                          │  (user record)           │
+  │                          │                          │
+  │                          │  bcrypt.compare(pw)      │
+  │                          │  → sign JWT token        │
+  │◄─────────────────────────│                          │
+  │  200 { accessToken }     │                          │
+```
+
+---
+
+### 1.3 So sánh Frontend vs Backend
+
+| Tiêu chí | Frontend | Backend |
+| -------- | -------- | ------- |
+| Chạy ở đâu | Trình duyệt | Server |
+| Ngôn ngữ phổ biến | HTML/CSS/JS, React, Vue | Node.js, Java, Python, Go |
+| Người dùng thấy được | ✅ | ❌ |
+| Xử lý dữ liệu | Hiển thị | Lưu trữ, xử lý, bảo mật |
+| Giao tiếp | Gọi API | Kết nối Database, Services |
+
+---
+
+### 1.4 Các thành phần của một Backend hiện đại
+
+```
+┌─────────────────────────────────────────────┐
+│                  Backend Layer               │
+│                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │  API     │  │  Auth    │  │  Queue   │  │
+│  │ (NestJS) │  │  Server  │  │ (BullMQ) │  │
+│  └──────────┘  └──────────┘  └──────────┘  │
+│                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │ Database │  │  Cache   │  │  Storage │  │
+│  │(Postgres)│  │  (Redis) │  │  (S3)    │  │
+│  └──────────┘  └──────────┘  └──────────┘  │
+└─────────────────────────────────────────────┘
+```
+
+---
+
+### 1.5 Vai trò của Backend Developer
+
+* Thiết kế và xây dựng **RESTful API**
+* Thiết kế **schema database**, viết migrations
+* Triển khai **Authentication & Authorization**
+* Tối ưu **hiệu suất truy vấn** (indexing, caching)
+* Đảm bảo **bảo mật** ứng dụng (validation, SQL injection prevention...)
+* **Deploy** lên server/cloud (Docker, PM2, CI/CD)
+
+👉 **NestJS là framework Node.js hiện đại, kiến trúc rõ ràng, được thiết kế cho backend production-ready**
+
+---
+
+## 2️⃣ Node.js là gì?
+
+### 2.1 Khái niệm Node.js
 
 **Node.js** là một **môi trường thực thi JavaScript phía server (Server-side JavaScript Runtime)**, được xây dựng trên **V8 JavaScript Engine** của Google Chrome.
 
@@ -32,9 +156,9 @@
 
 ---
 
-### 1.2 Kiến trúc Event Loop 
+### 2.2 Kiến trúc Event Loop 
 
-#### 1.2.1 Vấn đề của mô hình truyền thống (Thread-per-request)
+#### 2.2.1 Vấn đề của mô hình truyền thống (Thread-per-request)
 
 Trong các backend truyền thống:
 
@@ -54,7 +178,7 @@ Trong các backend truyền thống:
 
 ---
 
-#### 1.2.2 Mô hình Event Loop của Node.js
+#### 2.2.2 Mô hình Event Loop của Node.js
 
 Node.js sử dụng mô hình:
 
@@ -88,7 +212,7 @@ Node.js sử dụng mô hình:
 
 ---
 
-### 1.3 Event-driven Programming
+### 2.3 Event-driven Programming
 
 **Event-driven** là mô hình lập trình trong đó:
 
@@ -122,9 +246,9 @@ server.on('request', (req, res) => {
 
 ---
 
-### 1.4 Non-blocking I/O
+### 2.4 Non-blocking I/O
 
-#### 1.4.1 Blocking I/O là gì?
+#### 2.4.1 Blocking I/O là gì?
 
 Blocking I/O là khi:
 
@@ -139,7 +263,7 @@ readFileSync('data.txt'); // block
 
 ---
 
-#### 1.4.2 Non-blocking I/O là gì?
+#### 2.4.2 Non-blocking I/O là gì?
 
 Non-blocking I/O cho phép:
 
@@ -156,7 +280,7 @@ readFile('data.txt', callback);
 
 ---
 
-### 1.5 Ưu điểm và nhược điểm của Node.js 
+### 2.5 Ưu điểm và nhược điểm của Node.js 
 
 #### ✅ Ưu điểm
 
@@ -175,7 +299,7 @@ readFile('data.txt', callback);
 
 ---
 
-### 1.6 Built-in Modules trong Node.js
+### 2.6 Built-in Modules trong Node.js
 
 Node.js cung cấp sẵn **API truy cập hệ thống**:
 
@@ -192,11 +316,11 @@ Node.js cung cấp sẵn **API truy cập hệ thống**:
 
 ---
 
-## 2️⃣ JavaScript ES6+ 
+## 3️⃣ JavaScript ES6+ 
 
 Xem thêm tại đây: https://www.w3schools.com/nodejs/nodejs_es6.asp
 
-### 2.1 `let` và `const` – Quản lý scope
+### 3.1 `let` và `const` – Quản lý scope
 
 📌 ES6 giới thiệu **block scope**
 
@@ -214,7 +338,7 @@ if (true) {
 
 ---
 
-### 2.2 Arrow Function & Lexical `this`
+### 3.2 Arrow Function & Lexical `this`
 
 Arrow function:
 
@@ -231,7 +355,7 @@ const fn = () => {
 
 ---
 
-### 2.3 Destructuring Assignment
+### 3.3 Destructuring Assignment
 
 Destructuring giúp:
 
@@ -246,26 +370,192 @@ const { body } = req;
 
 ---
 
-### 2.4 Spread & Rest Operator
+### 3.4 Spread & Rest Operator
 
-📌 Spread:
+📌 Spread (`...`):
 
-* Clone object
-* Merge data
+```ts
+// Clone object
+const userCopy = { ...user };
 
-📌 Rest:
+// Merge objects
+const merged = { ...defaults, ...overrides };
+```
 
-* Gom nhiều tham số
+📌 Rest (`...`):
 
-👉 Quan trọng khi xử lý DTO, payload
+```ts
+// Gom nhiều tham số
+function log(first: string, ...rest: string[]) {
+  console.log(first, rest);
+}
+```
+
+👉 Quan trọng khi xử lý DTO, payload trong NestJS
 
 ---
 
-## 3️⃣ TypeScript cơ bản 
+### 3.5 Template Literals
+
+Template literals cho phép nhúng biểu thức vào chuỗi với cú pháp rõ ràng hơn.
+
+```ts
+const name = 'Tomy';
+const age = 25;
+
+// Cách cũ (string concatenation)
+const msg1 = 'Hello ' + name + ', age: ' + age;
+
+// Template literals (ES6+)
+const msg2 = `Hello ${name}, age: ${age}`;
+```
+
+📌 Hỗ trợ **multiline string**:
+
+```ts
+const query = `
+  SELECT *
+  FROM users
+  WHERE id = ${userId}
+`;
+```
+
+👉 Dùng nhiều khi tạo SQL query, log message, email template trong NestJS
+
+---
+
+### 3.6 Promise & Async/Await
+
+Đây là kiến thức **quan trọng nhất** khi làm việc với NestJS, vì hầu hết các tác vụ (database, HTTP, file I/O) đều **bất đồng bộ**.
+
+#### 3.6.1 Promise là gì?
+
+Promise đại diện cho một **giá trị chưa có ngay** – sẽ có sau khi tác vụ bất đồng bộ hoàn thành.
+
+```ts
+// Trạng thái của Promise
+// pending  → đang xử lý
+// fulfilled → thành công (resolve)
+// rejected  → thất bại (reject)
+
+function fetchUser(id: number): Promise<User> {
+  return new Promise((resolve, reject) => {
+    db.query('SELECT * FROM users WHERE id = ?', [id], (err, result) => {
+      if (err) reject(err);
+      else resolve(result[0]);
+    });
+  });
+}
+```
+
+#### 3.6.2 Async/Await
+
+`async/await` là cú pháp giúp viết code bất đồng bộ **như đồng bộ**, dễ đọc hơn Promise chain.
+
+```ts
+// ❌ Callback hell (khó đọc)
+getUser(id, (user) => {
+  getOrders(user.id, (orders) => {
+    sendEmail(user.email, orders, () => {
+      console.log('Done');
+    });
+  });
+});
+
+// ✅ Async/Await (dễ đọc)
+async function processUser(id: number) {
+  const user = await getUser(id);
+  const orders = await getOrders(user.id);
+  await sendEmail(user.email, orders);
+  console.log('Done');
+}
+```
+
+📌 **Xử lý lỗi với try/catch:**
+
+```ts
+async function createBook(dto: CreateBookDto) {
+  try {
+    const book = await this.bookRepository.save(dto);
+    return book;
+  } catch (error) {
+    throw new InternalServerErrorException('Lưu dữ liệu thất bại');
+  }
+}
+```
+
+👉 **Toàn bộ Service trong NestJS đều dùng async/await** khi thao tác database
+
+---
+
+### 3.7 Optional Chaining & Nullish Coalescing
+
+#### 3.7.1 Optional Chaining (`?.`)
+
+Truy cập property an toàn – **không bị lỗi** nếu object là `null` hoặc `undefined`.
+
+```ts
+// ❌ Dễ bị lỗi TypeError
+const city = user.address.city;
+
+// ✅ An toàn
+const city = user?.address?.city;
+// Nếu address là null/undefined → trả về undefined (không throw lỗi)
+```
+
+#### 3.7.2 Nullish Coalescing (`??`)
+
+Trả về giá trị mặc định khi giá trị là `null` hoặc `undefined` (khác với `||` – không bị ảnh hưởng bởi `0` hay `''`).
+
+```ts
+const limit = query.limit ?? 10;  // Nếu limit là null/undefined → dùng 10
+const name = user.name ?? 'Anonymous';
+```
+
+📌 So sánh:
+
+```ts
+const a = 0 || 'default';   // → 'default' (0 bị coi là falsy)
+const b = 0 ?? 'default';   // → 0         (chỉ null/undefined mới dùng default)
+```
+
+👉 Thường dùng trong NestJS khi đọc config, query params, optional DTO fields
+
+---
+
+### 3.8 Array Methods (map, filter, reduce)
+
+Các phương thức array là nền tảng xử lý dữ liệu trong backend.
+
+```ts
+const users = [
+  { id: 1, name: 'Alice', age: 25, active: true },
+  { id: 2, name: 'Bob',   age: 17, active: false },
+  { id: 3, name: 'Carol', age: 30, active: true },
+];
+
+// map: chuyển đổi từng phần tử → trả về array mới
+const names = users.map(u => u.name);
+// → ['Alice', 'Bob', 'Carol']
+
+// filter: lọc phần tử thỏa điều kiện
+const adults = users.filter(u => u.age >= 18 && u.active);
+// → [{ id: 1, ... }, { id: 3, ... }]
+
+// reduce: gộp array thành một giá trị duy nhất
+const totalAge = users.reduce((sum, u) => sum + u.age, 0);
+// → 72
+```
+
+👉 Dùng nhiều khi transform dữ liệu từ database trước khi trả về response
+
+---
+
+## 4️⃣ TypeScript cơ bản 
 
 Tìm hiểu thêm tại link: https://www.w3schools.com/typescript/
 
-### 3.1 TypeScript là gì?
+### 4.1 TypeScript là gì?
 
 TypeScript là:
 
@@ -283,7 +573,7 @@ TypeScript là:
 
 ---
 
-### 3.2 `type` và `interface` (Phân biệt rõ)
+### 4.2 `type` và `interface` (Phân biệt rõ)
 
 | Tiêu chí | type | interface |
 | -------- | ---- | --------- |
@@ -295,9 +585,9 @@ TypeScript là:
 
 ---
 
-### 3.3 Class & Access Modifier
+### 4.3 Class & Access Modifier
 
-#### 3.3.1 Class trong JavaScript
+#### 4.3.1 Class trong JavaScript
 
 
 Trong ES6, **class** là một cú pháp (syntax sugar) được giới thiệu để:
@@ -314,7 +604,7 @@ JavaScript **không phải ngôn ngữ OOP thuần** như Java hay C#
 👉 `class` trong JS thực chất được xây dựng **trên prototype**
 
 
-#### 3.3.2 Vì sao backend (NestJS) cần Class?
+#### 4.3.2 Vì sao backend (NestJS) cần Class?
 
 Backend API cần:
 
@@ -325,7 +615,7 @@ Backend API cần:
 
 👉 NestJS **xây dựng toàn bộ framework dựa trên class**
 
-#### 3.3.3 Khai báo Class trong ES6
+#### 4.3.3 Khai báo Class trong ES6
 
 **Cú pháp cơ bản**
 
@@ -348,7 +638,7 @@ class User {
 * `constructor`: hàm khởi tạo
 * `this`: tham chiếu tới instance
 
-#### 3.3.4 Tạo object từ class
+#### 4.3.4 Tạo object từ class
 
 
 ```js
@@ -358,7 +648,7 @@ console.log(user1.getInfo());
 
 👉 Mỗi request trong backend **có thể làm việc với object kiểu này**
 
-#### 3.3.5 Cấu trúc Class trong TypeScript
+#### 4.3.5 Cấu trúc Class trong TypeScript
 
 📌**Constructor là gì?**
 
@@ -407,7 +697,7 @@ console.log(user1.getInfo());
 
 
 
-#### 3.3.6 Access Modifier trong TypeScript
+#### 4.3.6 Access Modifier trong TypeScript
 
 TypeScript thêm **access modifier** để kiểm soát truy cập:
 
@@ -426,8 +716,7 @@ Ví dụ:
 class User {
     public name: string;
     private age: number;
-    pro
-    
+
     constructor(name: string, age: number) {
         this.name = name;
         this.age = age;
@@ -450,7 +739,7 @@ Giải thích:
 
 ---
 
-#### 3.3.7 Inheritance (Kế thừa) trong ES6 Class
+#### 4.3.7 Inheritance (Kế thừa) trong ES6 Class
 
 Kế thừa cho phép một class (subclass) nhận lại các thuộc tính và phương thức từ class khác (superclass).
 
@@ -494,7 +783,7 @@ class Dog extends Animal {
 
 ---
 
-#### 3.3.8 Abstract Class trong TypeScript
+#### 4.3.8 Abstract Class trong TypeScript
 
 **Abstract class** là một lớp không thể được khởi tạo trực tiếp. Nó được thiết kế để làm lớp cha cho các lớp con khác.
 
@@ -521,7 +810,7 @@ class Dog extends Animal {
 * `Dog` kế thừa `Animal` và triển khai `makeSound()`
 * Giúp định nghĩa giao diện chung cho các lớp con
 
-#### 3.3.9 Interface trong TypeScript
+#### 4.3.9 Interface trong TypeScript
 **Interface** định nghĩa cấu trúc của một đối tượng hoặc lớp mà không cung cấp triển khai cụ thể.
 Ví dụ:
 
@@ -546,7 +835,7 @@ class User implements IUser {
 * Giúp đảm bảo lớp tuân theo cấu trúc đã định nghĩa
 ---
 
-#### 3.3.10 Static Members trong TypeScript
+#### 4.3.10 Static Members trong TypeScript
 
 **Static members** là các thuộc tính và phương thức thuộc về lớp thay vì các instance của lớp đó.
 
@@ -571,7 +860,7 @@ Giải thích:
 * Gọi trực tiếp từ lớp, không cần tạo instance
 * Thường dùng cho các hàm tiện ích
 
-### 3.4 Generics
+### 4.4 Generics
 
 Generics giúp:
 
@@ -586,8 +875,8 @@ Generics giúp:
 Ví dụ:
 
 ```ts
-function response<T>(data: T): data: T {
-  return data
+function response<T>(data: T): T {
+  return data;
 }
 ```
 
@@ -601,7 +890,7 @@ response<number>(123);
 
 ---
 
-### 3.5 Modules trong TypeScript
+### 4.5 Modules trong TypeScript
 
 Modules là cách tổ chức code thành các file riêng biệt, giúp:
 
@@ -653,4 +942,174 @@ console.log(math.subtract(5, 2));
 
 * Mỗi file chỉ có **1 default export**
 * Import không cần ngoặc `{}`
+
+---
+
+## 5️⃣ NPM vs Yarn vs PNPM
+
+### 5.1 Package Manager là gì?
+
+**Package Manager** là công cụ giúp:
+
+* **Cài đặt** thư viện bên ngoài (dependencies)
+* **Quản lý phiên bản** thư viện
+* **Chạy scripts** (build, test, dev server)
+* **Khóa phiên bản** với lockfile
+
+📌 Khi tạo một dự án NestJS:
+
+```bash
+pnpm install @nestjs/core @nestjs/common
+```
+
+→ Package manager sẽ:
+1. Tải package từ npmjs.com
+2. Lưu vào `node_modules/`
+3. Ghi lại vào `package.json` và lockfile
+
+---
+
+### 5.2 So sánh NPM vs Yarn vs PNPM
+
+| Tiêu chí | NPM | Yarn | PNPM |
+| -------- | --- | ---- | ---- |
+| Phát triển bởi | Node.js team | Meta (Facebook) | Community |
+| Tốc độ cài đặt | Trung bình | Nhanh | **Nhanh nhất** |
+| Dung lượng disk | Nhiều | Nhiều | **Ít nhất** (dùng hard links) |
+| Lockfile | `package-lock.json` | `yarn.lock` | `pnpm-lock.yaml` |
+| Cài kèm Node.js | ✅ | ❌ | ❌ |
+| Strict dependencies | ❌ | ❌ | ✅ |
+
+📌 **PNPM tiết kiệm disk như thế nào?**
+
+* NPM/Yarn: mỗi project có bản copy riêng của package trong `node_modules`
+* PNPM: tất cả package được lưu **một lần** trong global store, các project dùng **hard link** → tiết kiệm GB dung lượng
+
+---
+
+### 5.3 Lệnh cơ bản
+
+| Tác vụ | NPM | Yarn | PNPM |
+| ------ | --- | ---- | ---- |
+| Cài đặt tất cả | `npm install` | `yarn` | `pnpm install` |
+| Thêm package | `npm install pkg` | `yarn add pkg` | `pnpm add pkg` |
+| Thêm devDependency | `npm install -D pkg` | `yarn add -D pkg` | `pnpm add -D pkg` |
+| Xóa package | `npm uninstall pkg` | `yarn remove pkg` | `pnpm remove pkg` |
+| Chạy script | `npm run dev` | `yarn dev` | `pnpm dev` |
+| Xem outdated | `npm outdated` | `yarn outdated` | `pnpm outdated` |
+
+---
+
+### 5.4 Cài đặt PNPM
+
+```bash
+# Cài PNPM qua npm
+npm install -g pnpm
+
+# Kiểm tra phiên bản
+pnpm --version
+```
+
+👉 **Khóa học này dùng PNPM** – tất cả dự án NestJS sẽ được khởi tạo bằng PNPM
+
+---
+
+## 6️⃣ Package.json & Dependency Management
+
+### 6.1 Package.json là gì?
+
+`package.json` là **file định nghĩa dự án Node.js**. Nó chứa:
+
+* Metadata của dự án (name, version, description)
+* Danh sách **dependencies**
+* Các **scripts** để chạy dự án
+* Cấu hình engine (yêu cầu Node.js version)
+
+📌 **Ví dụ package.json của một dự án NestJS:**
+
+```json
+{
+  "name": "my-nestjs-api",
+  "version": "1.0.0",
+  "description": "RESTful API với NestJS",
+  "scripts": {
+    "start":       "node dist/main",
+    "start:dev":   "nest start --watch",
+    "start:prod":  "node dist/main",
+    "build":       "nest build",
+    "test":        "jest",
+    "test:e2e":    "jest --config ./test/jest-e2e.json",
+    "lint":        "eslint \"{src,apps,libs,test}/**/*.ts\""
+  },
+  "dependencies": {
+    "@nestjs/common":   "^10.0.0",
+    "@nestjs/core":     "^10.0.0",
+    "@nestjs/platform-express": "^10.0.0",
+    "reflect-metadata": "^0.1.13",
+    "rxjs":             "^7.8.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli":      "^10.0.0",
+    "@nestjs/testing":  "^10.0.0",
+    "@types/node":      "^20.0.0",
+    "typescript":       "^5.0.0",
+    "jest":             "^29.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+```
+
+---
+
+### 6.2 dependencies vs devDependencies
+
+| | `dependencies` | `devDependencies` |
+|-|---------------|-------------------|
+| Là gì | Package cần khi **chạy production** | Package chỉ cần khi **phát triển** |
+| Ví dụ | `@nestjs/core`, `typeorm`, `bcrypt` | `jest`, `eslint`, `typescript`, `@types/*` |
+| Khi `npm install --production` | ✅ Được cài | ❌ Bị bỏ qua |
+
+📌 **Quy tắc:**
+* Thư viện runtime → `dependencies`
+* Tool build, test, lint → `devDependencies`
+
+---
+
+### 6.3 Semantic Versioning (SemVer)
+
+Phiên bản package theo format: **`MAJOR.MINOR.PATCH`**
+
+| Phần | Ý nghĩa | Ví dụ |
+| ---- | ------- | ----- |
+| MAJOR | Breaking changes – không tương thích | `10.0.0 → 11.0.0` |
+| MINOR | Tính năng mới – tương thích ngược | `10.0.0 → 10.1.0` |
+| PATCH | Bug fixes – tương thích ngược | `10.0.0 → 10.0.1` |
+
+📌 **Ký hiệu version range:**
+
+```
+"@nestjs/core": "^10.3.0"   // Caret: >=10.3.0 <11.0.0  (tương thích minor/patch)
+"rxjs":         "~7.8.1"    // Tilde: >=7.8.1 <7.9.0    (chỉ tương thích patch)
+"typescript":   "5.3.2"      // Chính xác version này
+```
+
+---
+
+### 6.4 Lockfile – Tại sao quan trọng?
+
+Lockfile ghi lại **chính xác phiên bản** của mọi package (kể cả dependencies của dependencies).
+
+📌 **Tại sao cần lockfile?**
+
+Không có lockfile:
+* Dev A chạy `pnpm install` → cài `express@4.18.0`
+* Dev B chạy `pnpm install` 2 tuần sau → cài `express@4.18.2`
+* → **Khác nhau!** Có thể gây bug môi trường
+
+Có lockfile (`pnpm-lock.yaml`):
+* Mọi người cài **đúng cùng phiên bản** → consistent environment
+
+👉 **Luôn commit lockfile vào git** – không thêm vào `.gitignore`
 

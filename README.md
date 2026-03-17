@@ -1,276 +1,504 @@
 # Lộ Trình Học Backend RESTful API với NestJs
 
-## Lesson 01 - Getting Started
+## Lesson 01: Tổng quan về Backend với NodeJs
 
+* Backend là gì?
 * Node.js là gì?
   * Giới thiệu về Node.js
   * Event Loop
   * Event-driven, Non-blocking I/O
-
 * JavaScript ES6+
-  * Let, Const
-  * Arrow function
-  * Destructuring
-  * Spread and Rest Operators
 * TypeScript cơ bản
-  * type, interface
-  * class, access modifier
-  * generics
+* NPM vs Yarn vs PNPM
+* Package.json và dependency management
 
 ---
 
-## Lesson 02 - Intro NestJS
+## Lesson 02: Tổng quan về NestJS
 
 * NestJS là gì?
   * NestJS giải quyết vấn đề gì?
   * So sánh NestJS vs Express
   * Kiến trúc **MVC + Dependency Injection**
   * NestJS dùng trong dự án nào?
+
 * Cài đặt môi trường và cài đặt dự án
+
   * Cài Node.js, npm
   * Cài Nest CLI
   * Tạo project NestJS đầu tiên
   * Hello world với NestJS
+
 * Tìm hiểu về cấu trúc NestJs
+
   * main.ts
   * AppModule
   * Bootstrap là gì?
   * Core Concepts Overview
+
 * Config & Environment
+
   * Cấu hình với ConfigModule
   * Sử dụng biến môi trường (.env)
   * Cấu hình theo môi trường (development, production)
   * Validation cho biến môi trường
+
 * Chuẩn hóa code với Prettier & ESLint hoặc Biome
+
   * Tại sao cần chuẩn hóa code?
   * Cài đặt Prettier & ESLint hoặc Biome
   * Cấu hình Prettier & ESLint hoặc Biome
 
 ---
 
-## Lesson 03 - Build RESTful API
+## Lesson 03: Build RESTful API với NestJS
+
+* Restful API là gì?
+* REST API Design Principles
+
+  * Resource vs Endpoint
+  * HTTP Methods
+  * HTTP Status Codes
 
 * Modules và Mục đích sử dụng
+
   * Module là gì?
   * Root module vs Feature module
   * @Module: imports, controllers, providers, exports
-* Controller
-  * Controller là gì?
-  * Routing trong NestJS
-* Service & Provider
-  * Service là gì?
-  * Provider là gì?
-  * Injectable
-  * Inject service vào controller
-* Quản lý phiên bản API (API Versioning)
-  * Tại sao cần versioning cho API?
-  * Cách cấu hình versioning trong NestJS
-  * Các chiến lược versioning: URI Versioning, Header Versioning
+
+* Controller và Routing trong NestJS
+
+* Service và Business Logic
+
+* REST API Best Practices
+  * Naming convention cho API
+  * API Versioning
 
 ---
 
-## Lesson 04 - Request Lifecycle and Data Flow
+## Lesson 04: NestJS Fundamental Concepts
 
-* Lifecycle trong NestJS
-  * Request Lifecycle Overview
-  * Các giai đoạn trong lifecycle
-    * Incoming Request
-    * Middleware
-    * Guards
-    * Interceptors (Before)
-    * Pipes
-    * Controller
-    * Service
-    * Interceptors (After)
-    * Exception Filters
-    * Outgoing Response
-* Data Flow trong NestJS
-* Execution Context
-  * Execution Context là gì?
-  * Các phương thức quan trọng: switchToHttp(), getRequest(), getHandler(), getClass()
-  * Sử dụng Execution Context trong Middleware, Guard, Interceptor
-* Validation và Transformation với DTO
-  * DTO là gì?
-  * Pipe là gì?
-  * Class-validator và class-transformer
-  * Sử dụng ValidationPipe
-  * Custom Validation Pipe
-* Error Handling
-  * Exception Filters
+* Decorators trong NestJS
+  * Decorators là gì
+  * Các loại Decorators trong NestJs
+    * Class decorator
+    * Method decorator
+    * Parameter decorator
+* Dependency Injection trong NestJS
+  * Dependency Injection là gì?
+  * DI container trong NestJS
+  * Providers
+  * `@Injectable()`
+  * Inject Service vào Controller
+  * Scope của Providers
+    * Singleton
+    * Transient
+    * Request-scoped
+* Request Lifecycle
+  * Tổng quan Request Lifecycle
+  * Flow xử lý request trong NestJS
+* Middleware
+  * Middleware là gì?
+  * Use case của Middleware
+  * Tạo custom middleware
+  * Áp dụng middleware cho route/module
+* Guards
+  * Guards là gì?
+  * Guards hoạt động khi nào?
+  * Tạo custom guard
+  * Sử dụng guard để bảo vệ route
+* Pipes
+  * Pipes là gì?
+  * Use case của Pipes
+  * Built-in pipes trong NestJS
+    * `ValidationPipe`
+    * `ParseIntPipe`
+    * `ParseUUIDPipe`
+  * Tạo custom pipe
+* Interceptors
+  * Interceptors là gì?
+  * Use case của Interceptors
+  * Tạo custom interceptor
+  * Sử dụng interceptor để log request/response, transform response, handle errors
+* Exception filters
+  * Exception Filters là gì?
+  * Xử lý lỗi trong NestJS
   * Built-in HTTP Exceptions
-  * Custom Exception Filter
-* Handling Responses
-  * Transform response
-  * Custom response format
-  
+* ExecutionContext
+  * ExecutionContext là gì?
+  * HTTP context
+  * Switching context
+  * Sử dụng ExecutionContext trong Guards và Interceptors
+
 ---
 
-## Lesson 05 - Connect Database
+## Lesson 05: Làm việc với Database (Prisma/TypeORM)
 
+* Database trong Backend ?
+  * Vai trò Database trong Backend
+  * Các loại Database phổ biến
+    * Relational Database (PostgreSQL, MySQL)
+    * NoSQL Database (MongoDB, Redis)
 * ORM là gì?
-* Giới thiệu TypeORM / Prisma
-* Cấu hình kết nối database (MySQL / PostgreSQL)
-* Entity & Repository
-  * Entity là gì?
-  * Column, Primary Key, Data Types
-  * Repository pattern
-* CRUD cơ bản
-* DTO Response vs Entity
-* Data Mapper Pattern
-* Cấu hình multi database connection
+  * ORM (Object Relational Mapping) là gì?
+  * Lợi ích của ORM
+  * So sánh Prisma và TypeORM
+* Cài đặt và cấu hình Database với NestJS
+  * Cài đặt TypeORM
+  * Kết nối database
+  * Cấu hình .env
+* Tạo Entity/Model với Prisma/TypeORM
+  * Entity trong TypeORM
+    * Tables
+    * Colums
+    * Primary Key
+  * Cấu hình tùy chỉnh cho Entity/Model
+    * Column types
+    * Default values
+* Repository Pattern
+* Validation và Transformation với DTO
+  * Data Transfer Object (DTO)
+    * DTO là gì?
+    * Tại sao cần DTO?
+  * Validation trong NestJS
+    * class-validator
+    * class-transformer
+    * ValidationPipe
+    * Global Validation Pipe
+* Thực hành CRUD cơ bản
+
+
 
 ---
 
-## Lesson 06 - TypeORM Advanced
+## Lesson 06: TypeORM Advanced
 
 * Quan hệ dữ liệu
   * One-to-One
   * One-to-Many
   * Many-to-Many
   * Cascade, eager, lazy
+
 * Truy vấn nâng cao
   * Relations
   * Pagination
   * Filtering
   * Sorting
+
 * Query Builder
 * Transactions
-  * Transaction là gì?
-  * Sử dụng Transactions với TypeORM
 * Indexes và Tối ưu hiệu suất truy vấn
   * Indexes là gì?
   * Tạo Indexes với TypeORM
   * Tối ưu hiệu suất truy vấn với Indexes
+* Migrations
+  * Migrations là gì?
+  * Tạo và chạy Migrations với TypeORM
+* Seeding Database với TypeORM
+  * Seeding là gì?
+  * Tạo và chạy Seeder với TypeORM
 
 ---
 
-## Lesson 07 - Build CURD complete with ReactJS
-  
+## Lesson 07: Build CRUD complete with ReactJS
+
 * Init dự án ReactJS
+
 * Kết nối ReactJS với API NestJS
+
 * Tạo giao diện CRUD với ReactJS
+
   * Tạo danh sách hiển thị dữ liệu
   * Tạo form thêm mới dữ liệu
   * Tạo form chỉnh sửa dữ liệu
   * Xóa dữ liệu
   * Tích hợp Alert, Notification
 
-## Lesson 08 - Database Migration and Seeding
-
-* Migration là gì và tại sao cần migration?
-* Tạo migration với TypeORM / Prisma
-* Chạy migration
-* Seeding dữ liệu ban đầu cho database
-* Quản lý migration trong dự án thực tế
-* Tích hợp nhiều Database trong NestJS
+* Chuẩn hóa response format
+  * Tại sao cần chuẩn hóa response format?
+  * Success response
+  * Error response
 
 ---
 
-## Lesson 09 - Authentication, Authorization
+## Lesson 08: Authentication (Jwt, 2FA)
 
-* Tổng quan về Authentication & Authorization
-* Authentication với JWT + Passport
-* Quản lý Access Token & Refresh Token
-* Authorization với Guards (RBAC)
-* Các best practice & lưu ý thực tế
+* Tổng quan về Authentication
+* Các phương thức Authentication trong Backend
+  * Session-based authentication
+  * Token-based authentication
+* Password Hashing
+  * Hash là gì?
+  * Hash & Encryption
+  * bcrypt
+  * argon2
+  * salt
+* Authentication Flow
+  * Login
+  * Register
+  * Logout
+* JWT Authentication
+  * JWT là gì?
+  * Cấu trúc JWT
+  * Tạo JWT với NestJS
+  * Xác thực JWT với Guards
+  * Access Token vs Refresh Token
+* PassportJS Authentication
+  * PassportJS là gì?
+  * Cài đặt và cấu hình PassportJS với NestJS
+  * Local Strategy
+  * JWT Strategy
+* Protect API với Guards
+  * AuthGuard
+  * Protect routes
+* Refresh Token
+  * Refresh Token Flow
+  * Token rotation
+* Advanced Authentication`
+  * Social Authentication (Google, Facebook, GitHub)
+  * Two Factor Authentication (2FA)
 
 ---
 
-## Lesson 10 - Build a Dashboard with ReactJS
-  
-* Build login page
-* Build dashboard layout
-* Build protected routes
-* Integrate with NestJS Authentication API
-* Display user profile
-* Logout functionality
+## Lesson 09: Authorization với NestJS
+
+* Authorization là gì?
+* Authentication vs Authorization
+* Các Mô hình Authorization trong Backend
+  * Role-based access control (RBAC)
+  * Permission-based authorization
+  * Ownership-based authorization
+* RBAC Implementation
+  * Tạo Role và Permission
+  * Gán Role cho User
+  * Gán Permission cho Role
+  * Kiểm tra quyền truy cập với Guards
+  * Casbin Authorization
+* Authorization với Guards
+  * Guard là gì ?
+  * RolesGuard
+  * PermissionsGuard
+  * OwnershipGuard
+  * Reflector
+  * Metadata
+* Custom Decorators cho Authorization
+  * @Roles
+  * @Permissions
+  * @Owner
+* Protecting APIs với RBAC
+  * Protect API với Role
+  * Protect API với Permission
+  * Protect API với Ownership
+* Advanced Authorization
+  * Attribute-based access control (ABAC)
+  * Policy-based authorization
 
 ---
 
-## Lesson 11 - NoSQL with MongoDB
+## Lesson 10: Implement Dashboard with ReactJS
 
-* Giới thiệu NoSQL và MongoDB
-* Cài đặt MongoDB và kết nối với NestJS
-* Sử dụng Mongoose với NestJS
-* Tạo Schema và Model với Mongoose
+* Init dự án ReactJS
+* Kết nối ReactJS với API NestJS
+* Tạo giao diện Dashboard với ReactJS
+* Protected Route với React Router
+* Display User Profile
+* Logout
+
+---
+
+## Lesson 11: Làm việc với MongoDB và Mongoose
+
+* Tổng quan về NoSQL
+* MongoDB là gì?
+* Mongoose là gì?
+* Cài đặt và cấu hình MongoDB với NestJS
+* Tạo Schema với Mongoose
+  * Embedded Document
+  * Reference Document
 * CRUD cơ bản với Mongoose
-* Quan hệ dữ liệu trong MongoDB
-  * Embedded Documents
-  * References
-
-## Lesson 12 - MongoDB Advanced
-
 * Truy vấn nâng cao với Mongoose
-  * Populate
+  * Population
   * Pagination
   * Filtering
   * Sorting
-  * Aggregation Pipeline
-* Transactions trong MongoDB
-* Indexes và Tối ưu hiệu suất truy vấn trong MongoDB
-* Migration & Data Seeding
-* Best Practices & Common Pitfalls
 
 ---
 
-## Lesson 13 - Upload & Streaming Files & Send Email NestJS
+## Lesson 12: Cache với Redis
 
-* Upload file với Multer
-* Cấu hình Upload trong NestJS
-* Lưu file lên server
-* Upload lên Cloud Storage (AWS S3 / Cloudinary)
-* Streaming file dung lượng lớn
-* Gửi email với NestJS
-
----
-
-## Lesson 14 - Optimization & Caching with Redis
-
-* Giới thiệu về Caching và Redis
-* Tại sao cần caching?
-* CacheModule
-* Sử dụng Redis làm cache store
-* Caching với Interceptor
-* **Tích hợp: Task Scheduling với BullJS** (giới thiệu background jobs, setup BullJS với Redis cho queueing tasks như cron jobs).
+* Cache là gì?
+* Redis là gì?
+* Cài đặt và cấu hình Redis với NestJS
+* Sử dụng Redis Cache trong NestJS
+  * Cache API responses
+  * Cache database queries
+  * Cache with TTL
+* Redis lock
+  * Distributed lock là gì?
+  * Implement distributed lock với Redis 
 
 ---
 
-## Lesson 15 - Documentation with Swagger
+## Lesson 13: Xử lý File Upload Multer
 
-* Tại sao cần tài liệu API?
-* Cài đặt Swagger Module
-* Tạo tài liệu API tự động
-* Sử dụng Swagger UI
-* Tùy chỉnh tài liệu API
-* Bảo mật tài liệu API
-
----
-
-## Lesson 16 - Testing in NestJS
-
-* Unit Test
-  * Jest trong NestJS
-  * Test service
-  * Mock dependency
-* E2E Test
-  * Supertest
-  * Test API end-to-end
+* File Upload là gì?
+* Multer là gì?
+* Cài đặt và cấu hình Multer với NestJS
+* Tạo API File Upload với Multer
+* Lưu trữ file với Multer
+* Validation cho file upload
+* Upload lên Cloud Storage
+  * AWS S3
+  * Cloudinary
 
 ---
 
-## Lesson 17 - Build & Deploy
+## Lesson 14: Tài liệu hóa API với OpenAPI (Swagger)
 
-* Build NestJS
-* CORS
-* Helmet
-* Rate limiting
-* Logging and Monitoring
-* PM2
-* Docker (basic)
-* Deploy lên VPS
-* Định hướng mở rộng:
-  * Websockets với NestJS
-  * Microservices với NestJS
-  * GraphQL với NestJS
-  * CQRS pattern
-  * Event Sourcing
+* OpenAPI là gì?
+* Swagger là gì?
+* Cài đặt và cấu hình Swagger với NestJS
+
+* Swagger decorators
+  * @ApiTags
+  * @ApiOperation
+  * @ApiResponse
+
+* Document request  
+  * Request body
+  * Query parameters
+  * Path parameters
+* DTO documentation
+  * @ApiProperty
+  * @ApiPropertyOptional
+  * Enum
+
+* API Error Response Standard
+* Pagination documentation
+
+---
+
+## Lesson 15: Xử lý lỗi nâng cao
+
+* Cách lỗi xảy ra trong NestJS
+  * Validation
+  * Authentication
+  * Database
+  * Business logic
+* NestJS Built-in Exceptions
+  * HttpException
+  * BadRequestException
+  * UnauthorizedException
+  * NotFoundException
+  * ConflictException
+  * InternalServerErrorException
+* Exception Filters nâng cao
+  * Global Exception Filter
+  * Custom Exception Filter
+
+* Error handling best practices
+  * Log lỗi
+  * Không trả về lỗi chi tiết cho client
+  * Sử dụng mã lỗi tùy chỉnh
+
+---
+
+## Lesson 16: Microservices với NestJS
+
+* Microservices là gì?
+* Monolith vs Microservices
+* Kiến trúc Microservices
+* Cài đặt Microservices với NestJS
+* Giao tiếp giữa services
+  * TCP
+  * Redis
+  * NATS
+  * gRPC
+* Message Patterns
+* Client Proxy
+* Event-based communication
+* Demo Microservice với RabbitMQ
+
+---
+
+## Lesson 17: Realtime
+
+* Realtime là gì?
+* WebSocket là gì?
+* Cài đặt WebSocket với NestJS
+* Websocket gateway
+* Tạo API Realtime với WebSocket
+* Sử dụng Socket.IO với NestJS
+  * Emit event
+  * Listen event
+  * Broadcast
+  * Rooms
+
+---
+
+## Lesson 18: Queue & Task schedule
+
+* Queue là gì?
+* Task Scheduling là gì?
+* Queue architecture
+  * Producer
+  * Consumer
+  * Worker
+  * Job
+* Redis backend cho BullJS
+* Cài đặt BullJS với NestJS
+* Tạo Queue
+* Job retry
+* Job delay
+* Job monitoring
+* Task scheduling
+  * Cron jobs
+  * @nestjs/schedule
+
+---
+
+## Lesson 19: Tối ưu hóa hiệu suất trong NestJS
+
+* Vì sao cần tối ưu hóa hiệu suất?
+* Tối ưu hóa với Interceptors
+* Tối ưu hóa với Caching (Redis)
+* Tối ưu hóa Database
+  * Indexes
+  * Query Optimization
+  * Connection Pooling
+  * N +1 Problem
+  * Pagination
+  * Lazy vs Eager Loading
+* Tối ưu hóa Business Logic
+
+---
+
+## 🆕 Lesson 20: Testing API với Jest
+
+* Unit Testing
+* Integration Testing
+* E2E Testing
+* Testing Controller
+* Testing Service
+* Supertest test API
+
+---
+
+## 🆕 Lesson 21: Deployment & Security
+
+* Build project
+
+```bash
+npm run build
+```
+
+* Environment variables
+* API Security
+  * CORS
+  * Helmet
+  * Rate Limiting
+  * CSRF
+  * API Key Authentication
+* Deploy với PM2
+* Dockerize NestJS
+* Deploy lên VPS / Cloud
