@@ -1619,8 +1619,6 @@ MongooseModule.forRootAsync({
 
 ---
 
-# Lesson 11 - NoSQL with MongoDB (Tiếp theo)
-
 ## 3. Sử dụng Mongoose với NestJS
 
 ### 3.1. Giới thiệu về Mongoose
@@ -4269,10 +4267,6 @@ await this.userModel.findOneAndUpdate(
 // Creates new document with email, name, and createdAt
 ```
 
-# Lesson 11 - NoSQL with MongoDB (Tiếp theo)
-
-## 5. CRUD cơ bản với Mongoose (Tiếp theo)
-
 ### 5.5. Xóa dữ liệu (Delete)
 
 #### deleteOne() - Xóa một document
@@ -5507,10 +5501,6 @@ export class PostsService {
   }
 }
 ```
-
-# Lesson 11 - NoSQL with MongoDB (Tiếp theo)
-
-## 6. Quan hệ dữ liệu trong MongoDB (Tiếp theo)
 
 ### 6.3. References (Normalization)
 

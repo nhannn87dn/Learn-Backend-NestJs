@@ -229,28 +229,12 @@
 * Các phương thức Authentication trong Backend
   * Session-based authentication
   * Token-based authentication
-* Password Hashing
-  * Hash là gì?
-  * Hash & Encryption
-  * bcrypt
-  * argon2
-  * salt
 * Authentication Flow
-  * Login
-  * Register
-  * Logout
-* JWT Authentication
   * JWT là gì?
   * Cấu trúc JWT
-  * Tạo JWT với NestJS
-  * Xác thực JWT với Guards
-  * Access Token vs Refresh Token
-* PassportJS Authentication
-  * PassportJS là gì?
-  * Cài đặt và cấu hình PassportJS với NestJS
-  * Local Strategy
-  * JWT Strategy
-* Protect API với Guards
+  * Tạo User và Hash Password
+  * Login and tạo Tokens
+* Protect API với Guard và PassportJS JWT
   * AuthGuard
   * Protect routes
 * Refresh Token
@@ -275,22 +259,9 @@
   * Gán Role cho User
   * Gán Permission cho Role
   * Kiểm tra quyền truy cập với Guards
-  * Casbin Authorization
 * Authorization với Guards
-  * Guard là gì ?
-  * RolesGuard
-  * PermissionsGuard
-  * OwnershipGuard
-  * Reflector
-  * Metadata
-* Custom Decorators cho Authorization
-  * @Roles
-  * @Permissions
-  * @Owner
-* Protecting APIs với RBAC
-  * Protect API với Role
-  * Protect API với Permission
-  * Protect API với Ownership
+  * Tạo AuthGuard
+  * Sử dụng Guards trong Controllers
 * Advanced Authorization
   * Attribute-based access control (ABAC)
   * Policy-based authorization
@@ -318,6 +289,10 @@
   * Embedded Document
   * Reference Document
 * CRUD cơ bản với Mongoose
+  * Tạo document mới
+  * Đọc dữ liệu
+  * Cập nhật dữ liệu
+  * Xóa dữ liệu
 * Truy vấn nâng cao với Mongoose
   * Population
   * Pagination
