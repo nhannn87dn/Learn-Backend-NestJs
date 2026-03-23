@@ -282,12 +282,29 @@
 ## Lesson 11: Làm việc với MongoDB và Mongoose
 
 * Tổng quan về NoSQL
+  * Khái niệm
+  * Tại sao ra đời NoSQL?
+  * CAP Theorem
+* Các loại cơ sở dữ liệu NoSQL
+  * Document Store (MongoDB, CouchDB)
+  * Key-Value Store (Redis, DynamoDB)
+  * Column-Family (Cassandra, HBase)
+  * Graph Database (Neo4j)
 * MongoDB là gì?
+  * Cấu trúc dữ liệu trong MongoDB
+  * Các lệnh cơ bản với MongoDB
+  * MongoDB Atlas - dịch vụ MongoDB trên Cloud
 * Mongoose là gì?
+  * Khái niệm 
+  * Tại sao cần Mongoose? (vs MongoDB Native Driver)
 * Cài đặt và cấu hình MongoDB với NestJS
 * Tạo Schema với Mongoose
   * Embedded Document
   * Reference Document
+  * Best practices cho Schema design
+* Validation và Middleware trong Mongoose
+  * Validation
+  * Pre/Post Hooks
 * CRUD cơ bản với Mongoose
   * Tạo document mới
   * Đọc dữ liệu
@@ -316,17 +333,38 @@
 
 ---
 
-## Lesson 13: Xử lý File Upload Multer
+## Lesson 13: Upload and Send mail với NestJS
 
 * File Upload là gì?
 * Multer là gì?
 * Cài đặt và cấu hình Multer với NestJS
 * Tạo API File Upload với Multer
-* Lưu trữ file với Multer
-* Validation cho file upload
-* Upload lên Cloud Storage
-  * AWS S3
-  * Cloudinary
+  * Upload single file
+  * Upload multiple files
+  * Upload file với field name
+  * No file upload
+* Cấu hình static file serving trong NestJS
+* Custom Upload with Interceptor
+  * Custom storage engine
+  * Custom file naming
+  * Custom file filter
+* File validation (size, type)
+* Advanced
+  * Upload lên Cloud Storage
+    * AWS S3
+    * Cloudinary
+  * Streaming file upload
+* Send mail với NestJS
+  * Tại sao cần gửi mail trong Backend?
+  * Cài đặt và cấu hình Nodemailer với NestJS
+    * SMTP là gì?
+    * Cấu hình SMTP server
+    * Cấu hình email provider (Gmail, SendGrid, Mailgun)
+    * Tạo module MailModule
+  * Tạo API gửi email
+    * Gửi mail với text plains
+    * Gửi mail với HTML
+    * Gửi mail với attachments
 
 ---
 

@@ -50,6 +50,12 @@
 * Xử lý đăng xuất
 * Xoá token khỏi client
 
+## Chức năng phân quyền người dùng
+
+* Phân nhóm người dùng (roles)
+* Gán permission cho các roles
+* Phân quyền truy cập vào các route và chức năng trong Dashboard
+
 ## Chức năng quên mật khẩu
 
 * Giao diện quên mật khẩu

@@ -443,7 +443,6 @@ export class AuthService {
         const payload = {
             sub: user.id,      // Subject: User ID
             email: user.email,
-            role: user.role
         };
         
         // 3. Tạo tokens
@@ -464,7 +463,6 @@ export class AuthService {
             id: user.id,
             email: user.email,
             name: user.name,
-            role: user.role
             }
         };
         }
