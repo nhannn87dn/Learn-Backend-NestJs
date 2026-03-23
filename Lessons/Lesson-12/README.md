@@ -1,7 +1,5 @@
 # Lesson 12: Cache & Redis trong NestJS
 
----
-
 ## 1. Cache là gì & tại sao cần?
 
 ### Cache là gì?

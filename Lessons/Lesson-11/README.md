@@ -79,25 +79,6 @@ NoSQL dùng denormalization — nhúng dữ liệu liên quan vào cùng một d
   ]
 }
 ```
-
-### CAP Theorem
-
-CAP Theorem phát biểu rằng một hệ thống phân tán chỉ đảm bảo được **tối đa 2 trong 3** đặc tính:
-
-| Đặc tính | Ý nghĩa |
-|---|---|
-| **C** - Consistency | Mọi node đều thấy cùng dữ liệu tại cùng thời điểm |
-| **A** - Availability | Hệ thống luôn phản hồi request |
-| **P** - Partition Tolerance | Hệ thống vẫn hoạt động khi mạng giữa các node bị lỗi |
-
-```
-Ví dụ: E-commerce, stock = 5, network bị đứt giữa 2 node
-
-CP (MongoDB):  Từ chối request → đảm bảo consistency, giảm availability
-AP (Cassandra): Chấp nhận cả 2 request → có thể oversell, nhưng luôn available
-CA:             Không khả thi trong distributed system khi có partition
-```
-
 ---
 
 ## 2. Các loại cơ sở dữ liệu NoSQL

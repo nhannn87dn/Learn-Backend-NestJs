@@ -373,122 +373,14 @@
 * OpenAPI là gì?
 * Swagger là gì?
 * Cài đặt và cấu hình Swagger với NestJS
-
-* Swagger decorators
-  * @ApiTags
-  * @ApiOperation
-  * @ApiResponse
-
-* Document request  
-  * Request body
-  * Query parameters
-  * Path parameters
-* DTO documentation
-  * @ApiProperty
-  * @ApiPropertyOptional
-  * Enum
-
-* API Error Response Standard
-* Pagination documentation
-
+* Tạo tài liệu API với Swagger
+  * Sử dụng decorators để mô tả API
+  * Tạo API documentation
+  * Tùy chỉnh Swagger UI
+  
 ---
 
-## Lesson 15: Xử lý lỗi nâng cao
-
-* Cách lỗi xảy ra trong NestJS
-  * Validation
-  * Authentication
-  * Database
-  * Business logic
-* NestJS Built-in Exceptions
-  * HttpException
-  * BadRequestException
-  * UnauthorizedException
-  * NotFoundException
-  * ConflictException
-  * InternalServerErrorException
-* Exception Filters nâng cao
-  * Global Exception Filter
-  * Custom Exception Filter
-
-* Error handling best practices
-  * Log lỗi
-  * Không trả về lỗi chi tiết cho client
-  * Sử dụng mã lỗi tùy chỉnh
-
----
-
-## Lesson 16: Microservices với NestJS
-
-* Microservices là gì?
-* Monolith vs Microservices
-* Kiến trúc Microservices
-* Cài đặt Microservices với NestJS
-* Giao tiếp giữa services
-  * TCP
-  * Redis
-  * NATS
-  * gRPC
-* Message Patterns
-* Client Proxy
-* Event-based communication
-* Demo Microservice với RabbitMQ
-
----
-
-## Lesson 17: Realtime
-
-* Realtime là gì?
-* WebSocket là gì?
-* Cài đặt WebSocket với NestJS
-* Websocket gateway
-* Tạo API Realtime với WebSocket
-* Sử dụng Socket.IO với NestJS
-  * Emit event
-  * Listen event
-  * Broadcast
-  * Rooms
-
----
-
-## Lesson 18: Queue & Task schedule
-
-* Queue là gì?
-* Task Scheduling là gì?
-* Queue architecture
-  * Producer
-  * Consumer
-  * Worker
-  * Job
-* Redis backend cho BullJS
-* Cài đặt BullJS với NestJS
-* Tạo Queue
-* Job retry
-* Job delay
-* Job monitoring
-* Task scheduling
-  * Cron jobs
-  * @nestjs/schedule
-
----
-
-## Lesson 19: Tối ưu hóa hiệu suất trong NestJS
-
-* Vì sao cần tối ưu hóa hiệu suất?
-* Tối ưu hóa với Interceptors
-* Tối ưu hóa với Caching (Redis)
-* Tối ưu hóa Database
-  * Indexes
-  * Query Optimization
-  * Connection Pooling
-  * N +1 Problem
-  * Pagination
-  * Lazy vs Eager Loading
-* Tối ưu hóa Business Logic
-
----
-
-## 🆕 Lesson 20: Testing API với Jest
+## Lesson 15: Testing API với Jest
 
 * Unit Testing
 * Integration Testing
@@ -499,21 +391,16 @@
 
 ---
 
-## 🆕 Lesson 21: Deployment & Security
+## Lesson 16: Deployment & Security
 
 * Build project
-
-```bash
-npm run build
-```
-
-* Environment variables
 * API Security
   * CORS
   * Helmet
   * Rate Limiting
   * CSRF
   * API Key Authentication
+* Health Check API
 * Deploy với PM2
 * Dockerize NestJS
 * Deploy lên VPS / Cloud

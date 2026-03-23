@@ -1,1353 +1,1064 @@
-# Lesson 15: API Documentation với Swagger/OpenAPI trong NestJS
+# Lesson 15: Testing với Jest và Supertest
 
 
-## 1. API Documentation Fundamentals
+## Mục lục
 
-### Tại sao cần tài liệu API?
-
-Hãy tưởng tượng bạn vừa vào một công ty mới, được giao nhiệm vụ tích hợp với một hệ thống backend đã có sẵn. Bạn cần biết: API có những endpoint nào? Mỗi endpoint nhận tham số gì? Trả về dữ liệu dạng nào? Nếu gặp lỗi thì lỗi trông như thế nào?
-
-Nếu không có tài liệu, bạn buộc phải đọc source code, hỏi đồng nghiệp, hoặc tệ hơn — thử sai. Đây là một trong những nguyên nhân phổ biến nhất gây ra lãng phí thời gian trong các dự án phần mềm.
-
-**Tài liệu API giải quyết các vấn đề cụ thể:**
-
-- **Giao tiếp giữa các team:** Frontend dev không cần phải "hỏi han" backend dev từng lần. Họ chỉ cần mở tài liệu lên là biết cần gọi gì.
-- **Onboarding người mới:** Developer mới vào dự án tự học được ngay thay vì phải được "cầm tay chỉ việc".
-- **Giảm lỗi tích hợp:** Khi contract (hợp đồng) giữa client và server được định nghĩa rõ ràng, số lượng bug do misunderstanding giảm đáng kể.
-- **Tự động hóa:** Từ tài liệu, bạn có thể tự động generate code client (SDK), test case, và mock server.
-
-```
-┌──────────────┐         ┌─────────────────┐         ┌──────────────┐
-│  Frontend Dev│ ──────► │  API Document   │ ◄─────── │ Backend Dev  │
-└──────────────┘         └─────────────────┘         └──────────────┘
-         │                        │                          │
-         │                        ▼                          │
-         │               ┌─────────────────┐                 │
-         └──────────────►│  Tích hợp đúng  │◄────────────────┘
-                         │  ngay lần đầu   │
-                         └─────────────────┘
-```
-
-### OpenAPI Specification
-
-**OpenAPI Specification (OAS)** là một tiêu chuẩn mở để mô tả RESTful API theo định dạng có thể đọc được bởi cả con người lẫn máy móc. File OpenAPI thường là JSON hoặc YAML.
-
-Trước đây nó có tên là **Swagger Specification**, nhưng sau khi được donate cho tổ chức OpenAPI Initiative (dưới sự bảo trợ của Linux Foundation), nó được đổi tên thành OpenAPI 3.0.
-
-Ví dụ một đoạn file OpenAPI YAML cơ bản:
-
-```yaml
-openapi: 3.0.0
-info:
-  title: My Todo API
-  version: 1.0.0
-  description: API quản lý công việc cá nhân
-
-paths:
-  /todos:
-    get:
-      summary: Lấy danh sách tất cả todos
-      responses:
-        '200':
-          description: Thành công
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Todo'
-
-components:
-  schemas:
-    Todo:
-      type: object
-      properties:
-        id:
-          type: integer
-        title:
-          type: string
-        completed:
-          type: boolean
-```
-
-File này là "source of truth" — mọi người đều dựa vào đây để biết API trông như thế nào.
-
-### Documentation Approaches
-
-Có 3 cách tiếp cận phổ biến khi viết tài liệu API:
-
-**1. Code-first (Annotation-based):**
-Bạn viết code trước, sau đó thêm annotation/decorator để tự động sinh ra tài liệu. Đây là cách NestJS + Swagger sử dụng.
-
-```
-Code + Decorators → Auto-generate → OpenAPI Spec → Swagger UI
-```
-
-✅ Ưu điểm: Tài liệu luôn đồng bộ với code, dễ maintain  
-❌ Nhược điểm: Code bị "pha loãng" bởi decorator documentation
-
-**2. Design-first (Spec-first):**
-Viết file OpenAPI YAML/JSON trước, sau đó generate code skeleton từ spec.
-
-```
-OpenAPI Spec → Generate skeleton → Implement logic
-```
-
-✅ Ưu điểm: Thiết kế API cẩn thận trước khi code, team có thể làm song song  
-❌ Nhược điểm: Khó duy trì đồng bộ giữa spec và code thực tế
-
-**3. Manual Documentation:**
-Viết tài liệu tay bằng Markdown, Confluence, Notion, v.v.
-
-✅ Ưu điểm: Linh hoạt, không phụ thuộc vào tool  
-❌ Nhược điểm: Rất dễ bị outdated, tốn công maintain
-
-> 💡 **Trong NestJS**, chúng ta sử dụng cách **Code-first** với `@nestjs/swagger`. Đây là cách tiếp cận thực tế nhất cho các dự án vừa và nhỏ.
+1. [Unit Testing](#1-unit-testing)
+2. [Integration Testing](#2-integration-testing)
+3. [E2E Testing](#3-e2e-testing)
+4. [Testing Controller](#4-testing-controller)
+5. [Testing Service](#5-testing-service)
+6. [Supertest test API](#6-supertest-test-api)
 
 ---
 
-## 2. Giới thiệu về Swagger/OpenAPI
+## Chuẩn bị
 
-### Swagger Ecosystem
+NestJS đã cài sẵn Jest khi `nest new`, bạn không cần cài thêm. Kiểm tra `package.json`:
 
-"Swagger" thực ra là tên của một bộ công cụ, không phải một thứ duy nhất:
-
-| Công cụ | Mô tả |
-|---|---|
-| **Swagger UI** | Giao diện web interactive để xem và test API |
-| **Swagger Editor** | Editor online để viết OpenAPI spec |
-| **Swagger Codegen** | Tool generate code client/server từ spec |
-| **SwaggerHub** | Platform SaaS quản lý API spec |
-
-Khi người ta nói "tích hợp Swagger vào NestJS", họ thường có nghĩa là: tự động generate OpenAPI spec từ code NestJS và hiển thị qua Swagger UI.
-
-### OpenAPI 3.0 Specification
-
-OpenAPI 3.0 là phiên bản hiện tại (cũng đã có 3.1 nhưng chưa phổ biến rộng rãi). So với phiên bản 2.0 (Swagger), nó có nhiều cải tiến:
-
-- **`components`** thay cho `definitions` — tổ chức lại schema, responses, parameters
-- **Multiple servers** — một API có thể có nhiều base URL
-- **`requestBody`** thay thế `body` parameter — rõ ràng hơn
-- **`oneOf`, `anyOf`, `allOf`** — hỗ trợ polymorphism tốt hơn
-- **Callbacks** — hỗ trợ webhook
-
-Cấu trúc tổng thể của một OpenAPI 3.0 document:
-
-```yaml
-openapi: 3.0.0        # Phiên bản spec
-info: ...              # Thông tin API (tên, version, contact)
-servers: [...]         # Danh sách server URLs
-paths: {...}           # Tất cả các endpoints
-components:            # Tái sử dụng schema, responses, ...
-  schemas: {...}
-  responses: {...}
-  parameters: {...}
-  securitySchemes: {...}
-security: [...]        # Global security requirement
-tags: [...]            # Nhóm các endpoints
-```
-
-### Alternative Tools Comparison
-
-| Tool | Điểm mạnh | Điểm yếu |
-|---|---|---|
-| **Swagger UI** | Phổ biến, quen thuộc, nhiều integration | UI hơi cũ, khó customize |
-| **Redoc** | UI đẹp hơn, tốt cho public docs | Không có try-it-out mặc định |
-| **Scalar** | Hiện đại, đẹp, nhẹ | Còn khá mới |
-| **Stoplight Elements** | Chuyên nghiệp, nhiều tính năng | Phức tạp hơn |
-
-Chúng ta sẽ tìm hiểu Redoc và Scalar ở phần sau.
-
----
-
-## 3. Cài đặt & Setup
-
-### Swagger Module Installation
-
-Để sử dụng Swagger với NestJS, chúng ta cần cài thêm package:
-
-```bash
-npm install @nestjs/swagger
-```
-
-> **Lưu ý:** `swagger-ui-express` không cần cài thêm — nó đã được bundle sẵn trong `@nestjs/swagger` từ phiên bản 5 trở đi.
-
-### Basic Configuration
-
-Mở file `src/main.ts` và thêm cấu hình Swagger:
-
-```typescript
-// src/main.ts
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  // 1. Tạo config cho Swagger document
-  const config = new DocumentBuilder()
-    .setTitle('Todo API')                        // Tên API
-    .setDescription('API quản lý công việc')     // Mô tả
-    .setVersion('1.0')                           // Version
-    .addTag('todos', 'Quản lý danh sách todo')   // Tag phân nhóm
-    .build();
-
-  // 2. Tạo document từ app + config
-  const document = SwaggerModule.createDocument(app, config);
-
-  // 3. Gắn Swagger UI vào route '/api'
-  SwaggerModule.setup('api', app, document);
-
-  await app.listen(3000);
-}
-bootstrap();
-```
-
-Bây giờ chạy `npm run start:dev` và mở trình duyệt vào `http://localhost:3000/api` — bạn sẽ thấy Swagger UI hiện ra!
-
-Ngoài ra, bạn cũng có thể lấy raw JSON spec tại: `http://localhost:3000/api-json`
-
-### Multiple Configurations (Dev/Prod)
-
-Thực tế, bạn không muốn expose Swagger UI trên môi trường production. Đây là cách xử lý:
-
-```typescript
-// src/main.ts
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ConfigService } from '@nestjs/config';
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  const configService = app.get(ConfigService);
-
-  const nodeEnv = configService.get<string>('NODE_ENV', 'development');
-
-  // Chỉ bật Swagger khi không phải production
-  if (nodeEnv !== 'production') {
-    const config = new DocumentBuilder()
-      .setTitle('Todo API')
-      .setDescription('API quản lý công việc — môi trường DEV')
-      .setVersion('1.0.0')
-      .addBearerAuth()  // Thêm nút Authorize cho JWT
-      .build();
-
-    const document = SwaggerModule.createDocument(app, config);
-
-    SwaggerModule.setup('api-docs', app, document, {
-      swaggerOptions: {
-        persistAuthorization: true,  // Giữ token khi reload trang
-      },
-    });
-
-    console.log(`📄 Swagger UI: http://localhost:3000/api-docs`);
+```json
+{
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:e2e": "jest --config ./test/jest-e2e.json"
+  },
+  "jest": {
+    "moduleFileExtensions": ["js", "json", "ts"],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": { "^.+\\.(t|j)s$": "ts-jest" },
+    "collectCoverageFrom": ["**/*.(t|j)s"],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
   }
-
-  await app.listen(3000);
 }
-bootstrap();
 ```
 
-> 💡 **Best Practice:** Đặt URL của Swagger là `/api-docs` thay vì `/api` để tránh nhầm lẫn với prefix của API routes.
+Cấu trúc project ví dụ dùng xuyên suốt bài:
+
+```
+src/
+├── users/
+│   ├── users.controller.ts
+│   ├── users.controller.spec.ts
+│   ├── users.service.ts
+│   ├── users.service.spec.ts
+│   └── users.module.ts
+└── app.module.ts
+
+test/
+├── users.e2e-spec.ts
+└── jest-e2e.json
+```
 
 ---
 
-## 4. Swagger Decorators Deep Dive
+## 1. Unit Testing
 
-Đây là phần cốt lõi — NestJS Swagger cung cấp một loạt decorator để bạn "mô tả" API ngay trong code.
+### 1.1 Unit Testing là gì?
 
-### Endpoint Documentation
+**Unit Test** kiểm tra từng đơn vị nhỏ nhất của code (thường là một function/method) **hoàn toàn độc lập** — không phụ thuộc vào database, network hay các service khác. Các dependency bên ngoài được thay bằng **mock** (giả lập).
+
+```
+Unit Test
+  └── Test 1 function/method
+  └── Mock toàn bộ dependency
+  └── Nhanh, chạy được offline
+  └── File: *.spec.ts nằm cạnh file gốc
+```
+
+### 1.2 Các khái niệm cốt lõi của Jest
 
 ```typescript
-// src/todos/todos.controller.ts
-import { Controller, Get, Post, Body, Param, Delete, Put } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { TodosService } from './todos.service';
-import { CreateTodoDto } from './dto/create-todo.dto';
-import { UpdateTodoDto } from './dto/update-todo.dto';
-import { Todo } from './entities/todo.entity';
+// Nhóm các test liên quan
+describe('tên nhóm', () => {
 
-@ApiTags('todos')           // Nhóm tất cả endpoints của controller này vào tag "todos"
-@Controller('todos')
-export class TodosController {
-  constructor(private readonly todosService: TodosService) {}
+  // Setup chạy 1 lần trước tất cả test
+  beforeAll(async () => { ... });
+
+  // Setup chạy trước mỗi test
+  beforeEach(async () => { ... });
+
+  // Cleanup sau mỗi test
+  afterEach(() => { ... });
+
+  // Một test case
+  it('mô tả điều cần test', () => {
+    // Arrange → Act → Assert
+    const result = doSomething();
+    expect(result).toBe(expectedValue);
+  });
+});
+```
+
+**Các matcher phổ biến:**
+
+```typescript
+expect(value).toBe(5)               // so sánh bằng === (primitive)
+expect(obj).toEqual({ name: 'a' })  // so sánh deep equal (object)
+expect(value).toBeTruthy()          // truthy
+expect(value).toBeFalsy()           // falsy
+expect(value).toBeNull()            // null
+expect(value).toBeUndefined()       // undefined
+expect(arr).toContain('item')       // mảng chứa phần tử
+expect(str).toMatch(/regex/)        // match regex
+expect(fn).toThrow()                // hàm throw error
+expect(fn).toThrow('message')       // throw với message cụ thể
+
+// Async
+await expect(promise).resolves.toBe(value)
+await expect(promise).rejects.toThrow('error')
+```
+
+### 1.3 Mock trong Jest
+
+Mock là cách tạo ra một phiên bản giả lập của một function/module để kiểm soát hành vi và theo dõi cách nó được gọi trong quá trình test.
+
+```typescript
+// Mock một function
+const mockFn = jest.fn();
+mockFn.mockReturnValue(42);
+mockFn.mockResolvedValue({ id: 1 }); // async
+mockFn.mockRejectedValue(new Error('fail')); // async throw
+
+// Kiểm tra mock đã được gọi chưa
+expect(mockFn).toHaveBeenCalled();
+expect(mockFn).toHaveBeenCalledTimes(2);
+expect(mockFn).toHaveBeenCalledWith('arg1', 'arg2');
+
+// Mock toàn bộ module
+jest.mock('../users/users.service');
+
+// Spy — mock một method của object thật
+jest.spyOn(service, 'findAll').mockResolvedValue([]);
+```
+
+### 1.4 Ví dụ Unit Test
+
+#### 1.4.1. Testing Controller
+
+Controller test kiểm tra logic route: nhận request, gọi đúng service, trả về đúng response. Service được **mock hoàn toàn**.
+
+**UsersController**
+
+```typescript
+// src/users/users.controller.ts
+import {
+  Controller, Get, Post, Put, Delete,
+  Param, Body, ParseIntPipe, NotFoundException,
+} from '@nestjs/common';
+import { UsersService } from './users.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+
+@Controller('users')
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @ApiOperation({
-    summary: 'Lấy danh sách tất cả todos',
-    description: 'Trả về mảng các todo. Hỗ trợ phân trang qua query params.',
-  })
-  @ApiResponse({ status: 200, description: 'Thành công', type: [Todo] })
   findAll() {
-    return this.todosService.findAll();
+    return this.usersService.findAll();
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Lấy một todo theo ID' })
-  @ApiParam({
-    name: 'id',
-    description: 'ID của todo cần lấy',
-    example: 1,
-  })
-  @ApiResponse({ status: 200, description: 'Tìm thấy todo', type: Todo })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy todo' })
-  findOne(@Param('id') id: string) {
-    return this.todosService.findOne(+id);
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    const user = await this.usersService.findOne(id);
+    if (!user) throw new NotFoundException(`User #${id} not found`);
+    return user;
   }
 
   @Post()
-  @ApiOperation({ summary: 'Tạo todo mới' })
-  @ApiResponse({ status: 201, description: 'Tạo thành công', type: Todo })
-  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
-  create(@Body() createTodoDto: CreateTodoDto) {
-    return this.todosService.create(createTodoDto);
+  create(@Body() dto: CreateUserDto) {
+    return this.usersService.create(dto);
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Cập nhật todo' })
-  update(@Param('id') id: string, @Body() updateTodoDto: UpdateTodoDto) {
-    return this.todosService.update(+id, updateTodoDto);
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
+    return this.usersService.update(id, dto);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Xóa todo' })
-  @ApiResponse({ status: 200, description: 'Xóa thành công' })
-  remove(@Param('id') id: string) {
-    return this.todosService.remove(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.remove(id);
   }
 }
 ```
 
-### Parameter Documentation
-
-Swagger hỗ trợ 4 loại parameter:
+**Controller Spec**
 
 ```typescript
-import {
-  ApiQuery,
-  ApiParam,
-  ApiHeader,
-  ApiCookieAuth
-} from '@nestjs/swagger';
-
-@Get('search')
-@ApiQuery({
-  name: 'keyword',
-  description: 'Từ khóa tìm kiếm',
-  required: false,
-  type: String,
-  example: 'học nestjs',
-})
-@ApiQuery({
-  name: 'page',
-  description: 'Trang hiện tại (bắt đầu từ 1)',
-  required: false,
-  type: Number,
-  example: 1,
-})
-@ApiQuery({
-  name: 'limit',
-  description: 'Số item mỗi trang',
-  required: false,
-  type: Number,
-  example: 10,
-})
-search(
-  @Query('keyword') keyword?: string,
-  @Query('page') page: number = 1,
-  @Query('limit') limit: number = 10,
-) {
-  return this.todosService.search({ keyword, page, limit });
-}
-
-// Header parameter
-@Get('export')
-@ApiHeader({
-  name: 'X-Client-Version',
-  description: 'Version của client app',
-  required: false,
-})
-export() { ... }
-```
-
-### Request/Response Documentation
-
-```typescript
-import {
-  ApiBody,
-  ApiConsumes,
-  ApiProduces,
-  ApiExtraModels,
-  getSchemaPath
-} from '@nestjs/swagger';
-
-// Mô tả request body một cách tường minh (optional nếu dùng DTO)
-@Post('bulk')
-@ApiOperation({ summary: 'Tạo nhiều todos cùng lúc' })
-@ApiBody({
-  description: 'Danh sách todos cần tạo',
-  type: [CreateTodoDto],
-  examples: {
-    example1: {
-      summary: 'Ví dụ cơ bản',
-      value: [
-        { title: 'Học NestJS', completed: false },
-        { title: 'Viết unit test', completed: false },
-      ],
-    },
-  },
-})
-@ApiResponse({
-  status: 201,
-  description: 'Tạo thành công',
-  schema: {
-    type: 'object',
-    properties: {
-      count: { type: 'number', example: 2 },
-      items: {
-        type: 'array',
-        items: { $ref: getSchemaPath(Todo) },
-      },
-    },
-  },
-})
-bulkCreate(@Body() createTodoDtos: CreateTodoDto[]) {
-  return this.todosService.bulkCreate(createTodoDtos);
-}
-```
-
-### Authentication Documentation
-
-```typescript
-// src/main.ts — Đăng ký security schemes
-const config = new DocumentBuilder()
-  .setTitle('Todo API')
-  .setVersion('1.0')
-  // JWT Bearer token
-  .addBearerAuth(
-    {
-      type: 'http',
-      scheme: 'bearer',
-      bearerFormat: 'JWT',
-      description: 'Nhập JWT token của bạn',
-    },
-    'access-token', // Tên của security scheme (dùng để reference)
-  )
-  // API Key
-  .addApiKey(
-    { type: 'apiKey', in: 'header', name: 'X-API-KEY' },
-    'api-key',
-  )
-  .build();
-```
-
-```typescript
-// src/todos/todos.controller.ts — Apply security vào endpoint
-import { ApiBearerAuth, ApiSecurity } from '@nestjs/swagger';
-import { UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-
-@ApiTags('todos')
-@ApiBearerAuth('access-token')  // Tên phải khớp với tên trong DocumentBuilder
-@UseGuards(JwtAuthGuard)
-@Controller('todos')
-export class TodosController {
-  // Tất cả endpoints trong controller này đều yêu cầu auth
-  // ...
-}
-
-// Hoặc apply cho từng endpoint:
-@Post()
-@ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard)
-create(@Body() dto: CreateTodoDto) { ... }
-```
-
----
-
-## 5. Document DTOs & Models
-
-### Schema Generation
-
-NestJS Swagger tự động đọc TypeScript class để generate schema. Bạn chỉ cần dùng `@ApiProperty()`:
-
-```typescript
-// src/todos/dto/create-todo.dto.ts
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsBoolean, IsOptional, IsEnum, MaxLength, MinLength } from 'class-validator';
-
-export enum TodoPriority {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-}
-
-export class CreateTodoDto {
-  @ApiProperty({
-    description: 'Tiêu đề của todo',
-    example: 'Học NestJS Swagger',
-    minLength: 1,
-    maxLength: 100,
-  })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100)
-  title: string;
-
-  @ApiPropertyOptional({
-    description: 'Mô tả chi tiết (không bắt buộc)',
-    example: 'Đọc documentation và làm theo tutorial',
-  })
-  @IsString()
-  @IsOptional()
-  description?: string;
-
-  @ApiPropertyOptional({
-    description: 'Trạng thái hoàn thành',
-    default: false,
-    example: false,
-  })
-  @IsBoolean()
-  @IsOptional()
-  completed?: boolean = false;
-
-  @ApiProperty({
-    description: 'Mức độ ưu tiên',
-    enum: TodoPriority,
-    example: TodoPriority.MEDIUM,
-  })
-  @IsEnum(TodoPriority)
-  priority: TodoPriority;
-}
-```
-
-```typescript
-// src/todos/entities/todo.entity.ts
-import { ApiProperty } from '@nestjs/swagger';
-
-export class Todo {
-  @ApiProperty({ description: 'ID tự tăng', example: 1 })
-  id: number;
-
-  @ApiProperty({ description: 'Tiêu đề', example: 'Học NestJS' })
-  title: string;
-
-  @ApiProperty({ description: 'Mô tả', example: 'Đọc docs chính thức', nullable: true })
-  description: string | null;
-
-  @ApiProperty({ description: 'Đã hoàn thành chưa', example: false })
-  completed: boolean;
-
-  @ApiProperty({ description: 'Ngày tạo', example: '2024-01-15T10:30:00Z' })
-  createdAt: Date;
-
-  @ApiProperty({ description: 'Ngày cập nhật', example: '2024-01-15T10:30:00Z' })
-  updatedAt: Date;
-}
-```
-
-### Validation Integration
-
-Khi dùng cùng với `class-validator` và `@nestjs/mapped-types`, bạn có thể tái sử dụng DTO:
-
-```typescript
-// src/todos/dto/update-todo.dto.ts
-import { PartialType } from '@nestjs/swagger';
-// ⚠️ QUAN TRỌNG: Import từ @nestjs/swagger, KHÔNG phải @nestjs/mapped-types
-// Lý do: @nestjs/swagger có version PartialType biết cách preserve ApiProperty metadata
-import { CreateTodoDto } from './create-todo.dto';
-
-export class UpdateTodoDto extends PartialType(CreateTodoDto) {
-  // Tất cả field của CreateTodoDto đều trở thành optional
-  // ApiProperty metadata được tự động kế thừa và điều chỉnh
-}
-```
-
-> ⚠️ **Lỗi phổ biến:** Nhiều người import `PartialType` từ `@nestjs/mapped-types` thay vì `@nestjs/swagger`. Kết quả là metadata bị mất và Swagger không hiển thị đúng schema.
-
-### Complex Types Handling
-
-```typescript
-// src/todos/dto/paginated-todos.dto.ts
-import { ApiProperty } from '@nestjs/swagger';
-import { Todo } from '../entities/todo.entity';
-
-export class PaginationMeta {
-  @ApiProperty({ example: 100 })
-  totalItems: number;
-
-  @ApiProperty({ example: 10 })
-  itemsPerPage: number;
-
-  @ApiProperty({ example: 10 })
-  totalPages: number;
-
-  @ApiProperty({ example: 1 })
-  currentPage: number;
-}
-
-export class PaginatedTodosDto {
-  @ApiProperty({ type: [Todo] })  // type: [ClassName] cho array
-  items: Todo[];
-
-  @ApiProperty({ type: PaginationMeta })  // Nested object
-  meta: PaginationMeta;
-}
-
-// Generic response wrapper
-export class ApiResponse<T> {
-  @ApiProperty({ example: true })
-  success: boolean;
-
-  @ApiProperty({ example: 'Thao tác thành công' })
-  message: string;
-
-  // Với generic type, cần dùng cách khác:
-  data: T;
-}
-
-// Vì TypeScript generics bị mất runtime, ta tạo concrete class cho từng case:
-export class TodoApiResponse {
-  @ApiProperty({ example: true })
-  success: boolean;
-
-  @ApiProperty({ example: 'Lấy todo thành công' })
-  message: string;
-
-  @ApiProperty({ type: Todo })
-  data: Todo;
-}
-```
-
----
-
-## 6. Advanced Features
-
-### File Uploads
-
-Đây là một case khá đặc biệt — khi upload file, bạn dùng `multipart/form-data`:
-
-```typescript
-// src/todos/todos.controller.ts
-import {
-  Controller,
-  Post,
-  UploadedFile,
-  UseInterceptors,
-  Body
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import {
-  ApiConsumes,
-  ApiBody,
-  ApiOperation,
-  ApiTags
-} from '@nestjs/swagger';
-
-@ApiTags('todos')
-@Controller('todos')
-export class TodosController {
-
-  @Post('import')
-  @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Import todos từ file CSV' })
-  @ApiConsumes('multipart/form-data')  // Thay đổi Content-Type
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['file'],
-      properties: {
-        file: {
-          type: 'string',
-          format: 'binary',        // Hiển thị file picker trong Swagger UI
-          description: 'File CSV chứa danh sách todos',
-        },
-        overwrite: {
-          type: 'boolean',
-          description: 'Ghi đè nếu đã tồn tại',
-          default: false,
-        },
-      },
-    },
-  })
-  importFromCsv(
-    @UploadedFile() file: Express.Multer.File,
-    @Body('overwrite') overwrite: boolean,
-  ) {
-    return this.todosService.importFromCsv(file, overwrite);
-  }
-}
-```
-
-### Multiple API Versions
-
-Khi API cần versioning, bạn có thể tạo nhiều Swagger document:
-
-```typescript
-// src/main.ts
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  // Enable versioning
-  app.enableVersioning({
-    type: VersioningType.URI, // /v1/todos, /v2/todos
-  });
-
-  // Document cho V1
-  const configV1 = new DocumentBuilder()
-    .setTitle('Todo API - V1')
-    .setVersion('1.0')
-    .addServer('/v1')
-    .build();
-
-  const documentV1 = SwaggerModule.createDocument(app, configV1, {
-    include: [TodosModuleV1],  // Chỉ include module của V1
-  });
-  SwaggerModule.setup('api/v1/docs', app, documentV1);
-
-  // Document cho V2
-  const configV2 = new DocumentBuilder()
-    .setTitle('Todo API - V2')
-    .setVersion('2.0')
-    .addServer('/v2')
-    .build();
-
-  const documentV2 = SwaggerModule.createDocument(app, configV2, {
-    include: [TodosModuleV2],
-  });
-  SwaggerModule.setup('api/v2/docs', app, documentV2);
-
-  await app.listen(3000);
-}
-```
-
-### Custom Responses
-
-Đôi khi bạn muốn document các error response theo chuẩn của project:
-
-```typescript
-// src/common/decorators/api-standard-responses.decorator.ts
-import { applyDecorators } from '@nestjs/common';
-import { ApiResponse } from '@nestjs/swagger';
-
-// Error response schema theo chuẩn của bạn
-class ErrorResponseDto {
-  @ApiProperty({ example: 400 })
-  statusCode: number;
-
-  @ApiProperty({ example: ['title must not be empty'] })
-  message: string[];
-
-  @ApiProperty({ example: 'Bad Request' })
-  error: string;
-}
-
-// Tạo custom decorator gộp nhiều @ApiResponse lại
-export function ApiStandardResponses() {
-  return applyDecorators(
-    ApiResponse({
-      status: 400,
-      description: 'Dữ liệu đầu vào không hợp lệ',
-      type: ErrorResponseDto,
-    }),
-    ApiResponse({
-      status: 401,
-      description: 'Chưa đăng nhập',
-    }),
-    ApiResponse({
-      status: 403,
-      description: 'Không có quyền truy cập',
-    }),
-    ApiResponse({
-      status: 500,
-      description: 'Lỗi hệ thống',
-    }),
-  );
-}
-
-// Sử dụng:
-@Post()
-@ApiStandardResponses()
-@ApiResponse({ status: 201, description: 'Tạo thành công', type: Todo })
-create(@Body() dto: CreateTodoDto) { ... }
-```
-
-### External Docs
-
-```typescript
-const config = new DocumentBuilder()
-  .setTitle('Todo API')
-  .setExternalDoc('Tài liệu đầy đủ tại Confluence', 'https://your-company.atlassian.net/wiki')
-  .setContact('Backend Team', 'https://your-company.com', 'backend@company.com')
-  .setLicense('MIT', 'https://opensource.org/licenses/MIT')
-  .build();
-```
-
----
-
-## 7. Swagger UI Customization
-
-### Theme và Branding
-
-```typescript
-// src/main.ts
-SwaggerModule.setup('api-docs', app, document, {
-  customSiteTitle: 'Todo API - Dev Portal',
-
-  // Custom CSS
-  customCss: `
-    .swagger-ui .topbar { background-color: #1a1a2e; }
-    .swagger-ui .topbar-wrapper img { content: url('/logo.png'); height: 40px; }
-    .swagger-ui .info .title { color: #e94560; }
-  `,
-
-  // Custom CSS từ file bên ngoài (nếu serve static)
-  customCssUrl: '/swagger-custom.css',
-
-  // Custom JS (nếu cần inject logic)
-  customJs: '/swagger-custom.js',
-
-  // Favicon
-  customfavIcon: '/favicon.ico',
-});
-```
-
-### Custom Features
-
-```typescript
-SwaggerModule.setup('api-docs', app, document, {
-  swaggerOptions: {
-    // Giữ token sau khi refresh trang
-    persistAuthorization: true,
-
-    // Tự động mở rộng tag đầu tiên
-    docExpansion: 'list', // 'none' | 'list' | 'full'
-
-    // Filter endpoint theo tag/keyword
-    filter: true,
-
-    // Hiện thị thời gian request
-    displayRequestDuration: true,
-
-    // Thứ tự sắp xếp endpoint
-    operationsSorter: 'alpha', // 'alpha' | 'method'
-
-    // Thứ tự sắp xếp tag
-    tagsSorter: 'alpha',
-
-    // Số dòng hiển thị mặc định cho response
-    defaultModelExpandDepth: 3,
-  },
-});
-```
-
----
-
-## 8. Alternative Documentation Tools
-
-### Redoc
-
-Redoc cho giao diện đẹp hơn, phù hợp cho public documentation:
-
-```bash
-npm install redoc-express
-```
-
-```typescript
-// src/main.ts
-import * as redoc from 'redoc-express';
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  // Tạo OpenAPI document như bình thường
-  const config = new DocumentBuilder()
-    .setTitle('Todo API')
-    .setVersion('1.0')
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-
-  // Expose JSON spec tại /api-json
-  app.use('/api-json', (req, res) => {
-    res.json(document);
-  });
-
-  // Mount Redoc UI tại /api-docs
-  app.use(
-    '/api-docs',
-    redoc.default({
-      title: 'Todo API Documentation',
-      specUrl: '/api-json',
-      redocOptions: {
-        hideDownloadButton: false,
-        expandResponses: '200,201',
-        requiredPropsFirst: true,
-      },
-    }),
-  );
-
-  await app.listen(3000);
-}
-```
-
-### Scalar
-
-Scalar là tool mới và rất hiện đại, được cộng đồng ưa thích:
-
-```bash
-npm install @scalar/nestjs-api-reference
-```
-
-```typescript
-// src/main.ts
-import { apiReference } from '@scalar/nestjs-api-reference';
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  const config = new DocumentBuilder()
-    .setTitle('Todo API')
-    .setVersion('1.0')
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-
-  // Expose spec
-  app.use('/openapi.json', (req, res) => res.json(document));
-
-  // Scalar UI
-  app.use(
-    '/reference',
-    apiReference({
-      theme: 'purple', // 'default' | 'moon' | 'purple' | 'solarized' | ...
-      spec: { url: '/openapi.json' },
-    }),
-  );
-
-  await app.listen(3000);
-}
-```
-
-> 💡 **Khi nào dùng gì?**
-> - **Swagger UI**: Internal tools, developer portal nội bộ, cần try-it-out
-> - **Redoc**: Public API documentation, cần đẹp và dễ đọc
-> - **Scalar**: Dự án mới, muốn UI hiện đại nhất
-
-### Postman Integration
-
-Bạn có thể import trực tiếp OpenAPI spec vào Postman:
-
-1. Mở Postman → Import
-2. Nhập URL: `http://localhost:3000/api-json`
-3. Postman sẽ tự động tạo collection với tất cả endpoints
-
-Hoặc generate Postman collection từ CLI:
-
-```bash
-# Cài tool
-npm install -g openapi-to-postmanv2
-
-# Convert
-openapi2postmanv2 -s api-spec.json -o postman-collection.json -p
-```
-
----
-
-## 9. Best Practices & Standards
-
-### Writing Good Descriptions
-
-**❌ Mô tả tệ:**
-```typescript
-@ApiOperation({ summary: 'Get todo' })
-```
-
-**✅ Mô tả tốt:**
-```typescript
-@ApiOperation({
-  summary: 'Lấy thông tin một todo theo ID',
-  description: `
-    Trả về chi tiết của một todo item dựa trên ID.
-
-    **Lưu ý:**
-    - Chỉ trả về todos của user hiện tại đang đăng nhập
-    - Yêu cầu Bearer token hợp lệ
-    - ID phải là số nguyên dương
-  `,
-})
-```
-
-**Nguyên tắc viết description:**
-- `summary`: Ngắn gọn, dạng động từ, tối đa 10 từ
-- `description`: Giải thích chi tiết hơn khi cần, hỗ trợ Markdown
-- Luôn đề cập side effect nếu có (ví dụ: "Hành động này không thể hoàn tác")
-
-### Consistency
-
-Tạo convention và áp dụng nhất quán cho toàn project:
-
-```typescript
-// src/common/swagger/response-schemas.ts
-// Định nghĩa các response schema tái sử dụng
-
-export const SWAGGER_RESPONSES = {
-  UNAUTHORIZED: {
-    status: 401,
-    description: 'Token không hợp lệ hoặc đã hết hạn',
-  },
-  FORBIDDEN: {
-    status: 403,
-    description: 'Bạn không có quyền thực hiện thao tác này',
-  },
-  NOT_FOUND: (entity: string) => ({
-    status: 404,
-    description: `Không tìm thấy ${entity}`,
-  }),
-  VALIDATION_FAILED: {
-    status: 422,
-    description: 'Dữ liệu không hợp lệ',
-  },
+// src/users/users.controller.spec.ts
+import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
+import { UsersController } from './users.controller';
+import { UsersService } from './users.service';
+
+// Dữ liệu dùng chung trong test
+const mockUsers = [
+  { userId: 1, username: 'john', email: 'john@example.com' },
+  { userId: 2, username: 'maria', email: 'maria@example.com' },
+];
+
+// Mock toàn bộ UsersService
+const mockUsersService = {
+  findAll: jest.fn(),
+  findOne: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  remove: jest.fn(),
 };
 
-// Sử dụng:
-@ApiResponse(SWAGGER_RESPONSES.NOT_FOUND('todo'))
-```
+describe('UsersController', () => {
+  let controller: UsersController;
+  let service: UsersService;
 
-### Error Handling Docs
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [UsersController],
+      providers: [
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
+        },
+      ],
+    }).compile();
 
-Mô tả rõ ràng error response giúp developer xử lý lỗi đúng cách:
+    controller = module.get<UsersController>(UsersController);
+    service = module.get<UsersService>(UsersService);
+  });
 
-```typescript
-// src/common/dto/error-response.dto.ts
-import { ApiProperty } from '@nestjs/swagger';
+  afterEach(() => jest.clearAllMocks());
 
-export class ValidationErrorDto {
-  @ApiProperty({ example: 422 })
-  statusCode: number;
+  // ── findAll ────────────────────────────────────────────────────────
+  describe('findAll()', () => {
+    it('nên trả về mảng users', async () => {
+      mockUsersService.findAll.mockResolvedValue(mockUsers);
 
-  @ApiProperty({
-    example: ['title must not be empty', 'priority must be a valid enum value'],
-    description: 'Danh sách lỗi validation cụ thể',
-  })
-  message: string[];
+      const result = await controller.findAll();
 
-  @ApiProperty({ example: 'Unprocessable Entity' })
-  error: string;
+      expect(service.findAll).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockUsers);
+    });
 
-  @ApiProperty({
-    example: '2024-01-15T10:30:00Z',
-    description: 'Thời điểm xảy ra lỗi (ISO 8601)',
-  })
-  timestamp: string;
+    it('nên trả về mảng rỗng nếu không có user', async () => {
+      mockUsersService.findAll.mockResolvedValue([]);
 
-  @ApiProperty({
-    example: '/todos',
-    description: 'Endpoint đã gọi',
-  })
-  path: string;
-}
+      const result = await controller.findAll();
+
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  // ── findOne ────────────────────────────────────────────────────────
+  describe('findOne()', () => {
+    it('nên trả về user theo id', async () => {
+      mockUsersService.findOne.mockResolvedValue(mockUsers[0]);
+
+      const result = await controller.findOne(1);
+
+      expect(service.findOne).toHaveBeenCalledWith(1);
+      expect(result).toEqual(mockUsers[0]);
+    });
+
+    it('nên throw NotFoundException nếu không tìm thấy user', async () => {
+      mockUsersService.findOne.mockResolvedValue(undefined);
+
+      await expect(controller.findOne(999)).rejects.toThrow(NotFoundException);
+      await expect(controller.findOne(999)).rejects.toThrow('User #999 not found');
+    });
+  });
+
+  // ── create ─────────────────────────────────────────────────────────
+  describe('create()', () => {
+    it('nên tạo user mới và trả về user đó', async () => {
+      const dto = { username: 'new', email: 'new@example.com', password: 'pass123' };
+      const created = { userId: 3, ...dto };
+      mockUsersService.create.mockResolvedValue(created);
+
+      const result = await controller.create(dto);
+
+      expect(service.create).toHaveBeenCalledWith(dto);
+      expect(result).toEqual(created);
+    });
+  });
+
+  // ── update ─────────────────────────────────────────────────────────
+  describe('update()', () => {
+    it('nên cập nhật user theo id', async () => {
+      const dto = { username: 'john_updated' };
+      const updated = { ...mockUsers[0], ...dto };
+      mockUsersService.update.mockResolvedValue(updated);
+
+      const result = await controller.update(1, dto);
+
+      expect(service.update).toHaveBeenCalledWith(1, dto);
+      expect(result.username).toBe('john_updated');
+    });
+  });
+
+  // ── remove ─────────────────────────────────────────────────────────
+  describe('remove()', () => {
+    it('nên xóa user theo id', async () => {
+      mockUsersService.remove.mockResolvedValue({ affected: 1 });
+
+      await controller.remove(1);
+
+      expect(service.remove).toHaveBeenCalledWith(1);
+    });
+  });
+});
 ```
 
 ---
 
-## 10. Testing & Validation
+#### 1.4.2 Testing Service
 
-### Spec Validation
+Service test kiểm tra business logic: tính toán, validation, xử lý lỗi. Repository/external dependency được **mock**.
 
-Đảm bảo OpenAPI spec của bạn hợp lệ bằng cách dùng tool:
-
-```bash
-# Cài Swagger CLI
-npm install -g @apidevtools/swagger-cli
-
-# Validate spec
-swagger-cli validate api-spec.json
-```
-
-Hoặc tích hợp vào test:
+**UsersService**
 
 ```typescript
-// test/swagger-spec.e2e-spec.ts
-import { Test } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { AppModule } from '../src/app.module';
-import SwaggerParser from '@apidevtools/swagger-parser';
+// src/users/users.service.ts
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import { User } from './user.entity';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
-describe('Swagger Spec Validation', () => {
+@Injectable()
+export class UsersService {
+  constructor(
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
+  ) {}
+
+  findAll(): Promise<User[]> {
+    return this.usersRepository.find();
+  }
+
+  findOne(userId: number): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { userId } });
+  }
+
+  async create(dto: CreateUserDto): Promise<User> {
+    const exists = await this.usersRepository.findOne({
+      where: { username: dto.username },
+    });
+    if (exists) {
+      throw new ConflictException('Username already taken');
+    }
+    const hashed = await bcrypt.hash(dto.password, 10);
+    const user = this.usersRepository.create({ ...dto, password: hashed });
+    return this.usersRepository.save(user);
+  }
+
+  async update(userId: number, dto: UpdateUserDto): Promise<User> {
+    const user = await this.findOne(userId);
+    if (!user) throw new NotFoundException(`User #${userId} not found`);
+    Object.assign(user, dto);
+    return this.usersRepository.save(user);
+  }
+
+  async remove(userId: number): Promise<void> {
+    const user = await this.findOne(userId);
+    if (!user) throw new NotFoundException(`User #${userId} not found`);
+    await this.usersRepository.delete(userId);
+  }
+}
+```
+
+**Service Spec**
+
+```typescript
+// src/users/users.service.spec.ts
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import { UsersService } from './users.service';
+import { User } from './user.entity';
+
+// Mock Repository — chỉ mock các method dùng đến
+const mockRepository = {
+  find: jest.fn(),
+  findOne: jest.fn(),
+  create: jest.fn(),
+  save: jest.fn(),
+  delete: jest.fn(),
+};
+
+describe('UsersService', () => {
+  let service: UsersService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockRepository,
+        },
+      ],
+    }).compile();
+
+    service = module.get<UsersService>(UsersService);
+  });
+
+  afterEach(() => jest.clearAllMocks());
+
+  // ── findAll ────────────────────────────────────────────────────────
+  describe('findAll()', () => {
+    it('nên trả về mảng tất cả users', async () => {
+      const users: User[] = [
+        { userId: 1, username: 'john', email: 'john@example.com', password: 'hashed' },
+      ];
+      mockRepository.find.mockResolvedValue(users);
+
+      const result = await service.findAll();
+
+      expect(mockRepository.find).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(users);
+    });
+  });
+
+  // ── findOne ────────────────────────────────────────────────────────
+  describe('findOne()', () => {
+    it('nên trả về user nếu tìm thấy', async () => {
+      const user = { userId: 1, username: 'john', email: 'john@example.com' };
+      mockRepository.findOne.mockResolvedValue(user);
+
+      const result = await service.findOne(1);
+
+      expect(mockRepository.findOne).toHaveBeenCalledWith({ where: { userId: 1 } });
+      expect(result).toEqual(user);
+    });
+
+    it('nên trả về null nếu không tìm thấy', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.findOne(999);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  // ── create ─────────────────────────────────────────────────────────
+  describe('create()', () => {
+    const dto = {
+      username: 'new_user',
+      email: 'new@example.com',
+      password: 'plaintext',
+    };
+
+    it('nên tạo user mới, hash password trước khi lưu', async () => {
+      mockRepository.findOne.mockResolvedValue(null); // username chưa tồn tại
+      mockRepository.create.mockImplementation(data => data);
+      mockRepository.save.mockImplementation(user => Promise.resolve({ userId: 1, ...user }));
+
+      const result = await service.create(dto);
+
+      expect(mockRepository.save).toHaveBeenCalledTimes(1);
+      // Password đã được hash, không còn là plaintext
+      expect(result.password).not.toBe(dto.password);
+      expect(result.password).toMatch(/^\$2b\$/); // bcrypt hash prefix
+    });
+
+    it('nên throw ConflictException nếu username đã tồn tại', async () => {
+      mockRepository.findOne.mockResolvedValue({ userId: 1, username: dto.username });
+
+      await expect(service.create(dto)).rejects.toThrow(ConflictException);
+      await expect(service.create(dto)).rejects.toThrow('Username already taken');
+
+      expect(mockRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── update ─────────────────────────────────────────────────────────
+  describe('update()', () => {
+    it('nên cập nhật và trả về user đã thay đổi', async () => {
+      const existing = { userId: 1, username: 'john', email: 'john@example.com' };
+      const dto = { username: 'john_v2' };
+      mockRepository.findOne.mockResolvedValue(existing);
+      mockRepository.save.mockResolvedValue({ ...existing, ...dto });
+
+      const result = await service.update(1, dto);
+
+      expect(result.username).toBe('john_v2');
+    });
+
+    it('nên throw NotFoundException nếu user không tồn tại', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.update(999, {})).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ── remove ─────────────────────────────────────────────────────────
+  describe('remove()', () => {
+    it('nên gọi delete() khi user tồn tại', async () => {
+      mockRepository.findOne.mockResolvedValue({ userId: 1 });
+      mockRepository.delete.mockResolvedValue({ affected: 1 });
+
+      await service.remove(1);
+
+      expect(mockRepository.delete).toHaveBeenCalledWith(1);
+    });
+
+    it('nên throw NotFoundException khi user không tồn tại', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.remove(999)).rejects.toThrow(NotFoundException);
+      expect(mockRepository.delete).not.toHaveBeenCalled();
+    });
+  });
+});
+```
+
+Chạy test:
+
+```bash
+npm run test
+```
+
+---
+
+## 2. Integration Testing
+
+### 2.1 Integration Testing là gì?
+
+**Integration Test** kiểm tra sự phối hợp giữa nhiều thành phần (Service + Repository, Controller + Service...). Không mock tất cả — chỉ mock những thứ bên ngoài hệ thống (database, HTTP external).
+
+```
+Unit Test        Integration Test     E2E Test
+   │                    │                │
+1 function        2+ components     Toàn bộ app
+Mock tất cả      Mock một phần      Không mock
+Rất nhanh            Trung bình         Chậm
+```
+
+### 2.2 Testing Module trong NestJS
+
+NestJS cung cấp `Test.createTestingModule()` để tạo một module test cô lập — đây là nền tảng cho cả Unit và Integration test:
+
+```typescript
+import { Test, TestingModule } from '@nestjs/testing';
+
+// Tạo module với đầy đủ dependency thật
+const moduleRef: TestingModule = await Test.createTestingModule({
+  imports: [UsersModule],         // Import module thật
+  providers: [UsersService],      // Hoặc khai báo provider thật
+}).compile();
+
+const service = moduleRef.get(UsersService);
+```
+
+### 2.3 Ví dụ Integration Test: Service + Repository
+
+```typescript
+// src/users/users.integration.spec.ts
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { UsersService } from './users.service';
+import { User } from './user.entity';
+
+describe('UsersService — Integration', () => {
+  let service: UsersService;
+  let repo: Repository<User>;
+
+  const mockRepo = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+    delete: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockRepo,   // Mock repository, dùng service thật
+        },
+      ],
+    }).compile();
+
+    service = module.get<UsersService>(UsersService);
+    repo = module.get<Repository<User>>(getRepositoryToken(User));
+  });
+
+  afterEach(() => jest.clearAllMocks());
+
+  it('findAll() gọi repo.find() và trả về danh sách', async () => {
+    const users = [{ userId: 1, username: 'john' }];
+    mockRepo.find.mockResolvedValue(users);
+
+    const result = await service.findAll();
+
+    expect(repo.find).toHaveBeenCalledTimes(1);
+    expect(result).toEqual(users);
+  });
+
+  it('findOne() trả về undefined khi không tìm thấy user', async () => {
+    mockRepo.findOne.mockResolvedValue(undefined);
+
+    const result = await service.findOne(999);
+
+    expect(result).toBeUndefined();
+  });
+});
+```
+
+---
+
+## 3. E2E Testing
+
+### 3.1 E2E Testing là gì?
+
+**E2E (End-to-End) Test** khởi động toàn bộ ứng dụng NestJS và gửi HTTP request thật, kiểm tra response từ đầu đến cuối — giống người dùng thật dùng API. Dùng **Supertest** để gửi request.
+
+```
+Client (Supertest)
+      │  HTTP Request
+      ▼
+  NestJS App (thật)
+      │
+  Controller → Service → Repository
+                              │
+                         (thường mock DB
+                          hoặc dùng DB test)
+      │  HTTP Response
+      ▼
+  Assert status, body
+```
+
+### 3.2 Cấu hình jest-e2e.json
+
+```json
+// test/jest-e2e.json
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  }
+}
+```
+
+Chạy E2E test:
+
+```bash
+npm run test:e2e
+```
+
+### 3.3 Khởi tạo app trong E2E test
+
+```typescript
+// test/users.e2e-spec.ts
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import * as request from 'supertest';
+import { AppModule } from '../src/app.module';
+
+describe('Users API (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
+    const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
-    app = moduleRef.createNestApplication();
+    app = moduleFixture.createNestApplication();
+
+    // Phải thiết lập y chang main.ts
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+
     await app.init();
-  });
-
-  it('OpenAPI spec phải hợp lệ', async () => {
-    const config = new DocumentBuilder()
-      .setTitle('Test')
-      .setVersion('1.0')
-      .build();
-
-    const document = SwaggerModule.createDocument(app, config);
-
-    // Sẽ throw nếu spec không hợp lệ
-    await expect(
-      SwaggerParser.validate(document as any)
-    ).resolves.not.toThrow();
   });
 
   afterAll(async () => {
     await app.close();
   });
+
+  it('GET /users → 200', () => {
+    return request(app.getHttpServer())
+      .get('/users')
+      .expect(200)
+      .expect(res => {
+        expect(Array.isArray(res.body)).toBe(true);
+      });
+  });
 });
 ```
 
-### API Testing từ Swagger UI
-
-Swagger UI có nút **"Try it out"** cho phép bạn test API trực tiếp từ trình duyệt:
-
-1. Mở Swagger UI tại `/api-docs`
-2. Click vào endpoint muốn test
-3. Click **"Try it out"**
-4. Điền tham số và request body
-5. Click **"Execute"**
-6. Xem response bên dưới
-
-Để test endpoint yêu cầu authentication:
-1. Click nút **"Authorize"** ở trên cùng (hình ổ khóa)
-2. Nhập token vào ô `Bearer Token`
-3. Click **"Authorize"** → **"Close"**
-4. Bây giờ tất cả request sẽ tự động đính kèm token
-
-### Mock Servers
-
-Từ OpenAPI spec, bạn có thể tạo mock server để frontend dev làm việc độc lập:
-
-```bash
-# Cài Prism — mock server từ OpenAPI spec
-npm install -g @stoplight/prism-cli
-
-# Lưu spec ra file
-curl http://localhost:3000/api-json -o api-spec.json
-
-# Chạy mock server tại port 4010
-prism mock api-spec.json
-
-# Bây giờ frontend gọi http://localhost:4010/todos
-# Prism tự động trả về dữ liệu dựa trên example trong spec
-```
-
 ---
 
-## 11. Bảo mật tài liệu API
+## 6. Supertest test API
 
-### Authentication Required
+**Supertest** gửi HTTP request thật đến app NestJS đang chạy trong môi trường test, kiểm tra toàn bộ stack từ routing → controller → service → response.
 
-Bảo vệ Swagger UI bằng HTTP Basic Auth:
+### 6.1 Cài đặt
 
 ```bash
-npm install express-basic-auth
+npm install --save-dev supertest @types/supertest
 ```
+
+### 6.2 E2E Test CRUD Users
 
 ```typescript
-// src/main.ts
-import * as basicAuth from 'express-basic-auth';
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  const configService = app.get(ConfigService);
-
-  // Bảo vệ route /api-docs bằng Basic Auth
-  app.use(
-    ['/api-docs', '/api-docs-json'],
-    basicAuth({
-      challenge: true,
-      users: {
-        // Username: Password — nên lấy từ env
-        [configService.get('SWAGGER_USER')]:
-          configService.get('SWAGGER_PASS'),
-      },
-    }),
-  );
-
-  const config = new DocumentBuilder()
-    .setTitle('Todo API')
-    .setVersion('1.0')
-    .build();
-
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api-docs', app, document);
-
-  await app.listen(3000);
-}
-```
-
-```env
-# .env
-SWAGGER_USER=admin
-SWAGGER_PASS=super-secret-password-123
-```
-
-### Environment-based Access
-
-```typescript
-// Swagger chỉ hiện ở dev và staging, không phải production
-const allowedEnvs = ['development', 'staging'];
-
-if (allowedEnvs.includes(process.env.NODE_ENV)) {
-  // Setup swagger...
-}
-```
-
-### API Key Protection
-
-Nếu bạn muốn developer bên ngoài truy cập nhưng cần key:
-
-```typescript
-// src/middleware/swagger-auth.middleware.ts
-import { Injectable, NestMiddleware } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
-
-@Injectable()
-export class SwaggerAuthMiddleware implements NestMiddleware {
-  use(req: Request, res: Response, next: NextFunction) {
-    const apiKey = req.headers['x-swagger-key'] || req.query['swagger-key'];
-    const validKey = process.env.SWAGGER_API_KEY;
-
-    if (apiKey !== validKey) {
-      return res.status(403).json({ message: 'Forbidden: Invalid Swagger API Key' });
-    }
-    next();
-  }
-}
-
-// Áp dụng trong AppModule:
-consumer
-  .apply(SwaggerAuthMiddleware)
-  .forRoutes('/api-docs', '/api-json');
-```
-
----
-
-## 12. CI/CD & Deployment
-
-### Auto-generation
-
-Tự động generate và lưu spec file khi build:
-
-```typescript
-// scripts/generate-swagger.ts
-import { NestFactory } from '@nestjs/core';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+// test/users.e2e-spec.ts
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import * as request from 'supertest';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { AppModule } from '../src/app.module';
-import { writeFileSync } from 'fs';
+import { User } from '../src/users/user.entity';
 
-async function generateSwagger() {
-  const app = await NestFactory.create(AppModule, { logger: false });
+describe('Users API (e2e)', () => {
+  let app: INestApplication;
 
-  const config = new DocumentBuilder()
-    .setTitle('Todo API')
-    .setVersion('1.0')
-    .build();
+  // Mock repository dùng trong toàn bộ E2E test
+  const mockUsersRepo = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    delete: jest.fn(),
+  };
 
-  const document = SwaggerModule.createDocument(app, config);
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      // Override repository bằng mock để không cần database thật
+      .overrideProvider(getRepositoryToken(User))
+      .useValue(mockUsersRepo)
+      .compile();
 
-  // Lưu ra file JSON
-  writeFileSync('./swagger-spec.json', JSON.stringify(document, null, 2));
+    app = moduleFixture.createNestApplication();
 
-  // Lưu ra file YAML (cần cài js-yaml)
-  // const yaml = require('js-yaml');
-  // writeFileSync('./swagger-spec.yaml', yaml.dump(document));
+    // Phải cấu hình y chang main.ts
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+    );
 
-  console.log('✅ Swagger spec generated: swagger-spec.json');
-  await app.close();
-}
+    await app.init();
+  });
 
-generateSwagger();
+  afterAll(async () => {
+    await app.close();
+  });
+
+  afterEach(() => jest.clearAllMocks());
+
+  // ── GET /users ─────────────────────────────────────────────────────
+  describe('GET /users', () => {
+    it('200 — trả về danh sách users', async () => {
+      const users = [{ userId: 1, username: 'john', email: 'john@example.com' }];
+      mockUsersRepo.find.mockResolvedValue(users);
+
+      const res = await request(app.getHttpServer())
+        .get('/users')
+        .expect(200);
+
+      expect(res.body).toEqual(users);
+    });
+
+    it('200 — trả về mảng rỗng khi không có user', async () => {
+      mockUsersRepo.find.mockResolvedValue([]);
+
+      const res = await request(app.getHttpServer())
+        .get('/users')
+        .expect(200);
+
+      expect(res.body).toEqual([]);
+    });
+  });
+
+  // ── GET /users/:id ─────────────────────────────────────────────────
+  describe('GET /users/:id', () => {
+    it('200 — trả về user theo id', async () => {
+      const user = { userId: 1, username: 'john', email: 'john@example.com' };
+      mockUsersRepo.findOne.mockResolvedValue(user);
+
+      const res = await request(app.getHttpServer())
+        .get('/users/1')
+        .expect(200);
+
+      expect(res.body).toEqual(user);
+    });
+
+    it('404 — user không tồn tại', async () => {
+      mockUsersRepo.findOne.mockResolvedValue(null);
+
+      const res = await request(app.getHttpServer())
+        .get('/users/999')
+        .expect(404);
+
+      expect(res.body.message).toBe('User #999 not found');
+    });
+
+    it('400 — id không phải số', async () => {
+      await request(app.getHttpServer())
+        .get('/users/abc')
+        .expect(400);
+    });
+  });
+
+  // ── POST /users ────────────────────────────────────────────────────
+  describe('POST /users', () => {
+    it('201 — tạo user thành công', async () => {
+      const dto = { username: 'new', email: 'new@example.com', password: 'pass1234' };
+      const saved = { userId: 2, username: 'new', email: 'new@example.com' };
+
+      mockUsersRepo.findOne.mockResolvedValue(null); // username chưa tồn tại
+      mockUsersRepo.create.mockReturnValue(dto);
+      mockUsersRepo.save.mockResolvedValue(saved);
+
+      const res = await request(app.getHttpServer())
+        .post('/users')
+        .send(dto)
+        .expect(201);
+
+      expect(res.body.username).toBe('new');
+      expect(res.body.password).toBeUndefined(); // Không trả về password
+    });
+
+    it('400 — thiếu field bắt buộc', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/users')
+        .send({ username: 'no-email' }) // thiếu email và password
+        .expect(400);
+
+      expect(res.body.message).toBeInstanceOf(Array);
+    });
+
+    it('400 — email không hợp lệ', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/users')
+        .send({ username: 'u', email: 'not-an-email', password: 'pass1234' })
+        .expect(400);
+
+      expect(res.body.message).toContain('email must be an email');
+    });
+
+    it('409 — username đã tồn tại', async () => {
+      mockUsersRepo.findOne.mockResolvedValue({ userId: 1, username: 'existing' });
+
+      const res = await request(app.getHttpServer())
+        .post('/users')
+        .send({ username: 'existing', email: 'a@example.com', password: 'pass1234' })
+        .expect(409);
+
+      expect(res.body.message).toBe('Username already taken');
+    });
+  });
+
+  // ── PUT /users/:id ─────────────────────────────────────────────────
+  describe('PUT /users/:id', () => {
+    it('200 — cập nhật user thành công', async () => {
+      const existing = { userId: 1, username: 'john', email: 'john@example.com' };
+      const updated = { ...existing, username: 'john_v2' };
+
+      mockUsersRepo.findOne.mockResolvedValue(existing);
+      mockUsersRepo.save.mockResolvedValue(updated);
+
+      const res = await request(app.getHttpServer())
+        .put('/users/1')
+        .send({ username: 'john_v2' })
+        .expect(200);
+
+      expect(res.body.username).toBe('john_v2');
+    });
+
+    it('404 — user không tồn tại', async () => {
+      mockUsersRepo.findOne.mockResolvedValue(null);
+
+      await request(app.getHttpServer())
+        .put('/users/999')
+        .send({ username: 'x' })
+        .expect(404);
+    });
+  });
+
+  // ── DELETE /users/:id ──────────────────────────────────────────────
+  describe('DELETE /users/:id', () => {
+    it('200 — xóa user thành công', async () => {
+      mockUsersRepo.findOne.mockResolvedValue({ userId: 1 });
+      mockUsersRepo.delete.mockResolvedValue({ affected: 1 });
+
+      await request(app.getHttpServer())
+        .delete('/users/1')
+        .expect(200);
+    });
+
+    it('404 — xóa user không tồn tại', async () => {
+      mockUsersRepo.findOne.mockResolvedValue(null);
+
+      await request(app.getHttpServer())
+        .delete('/users/999')
+        .expect(404);
+    });
+  });
+});
 ```
 
-```json
-// package.json
-{
-  "scripts": {
-    "swagger:generate": "ts-node scripts/generate-swagger.ts"
-  }
-}
-```
-
-### Documentation Deployment
-
-Triển khai docs lên GitHub Pages hoặc static host:
-
-```yaml
-# .github/workflows/deploy-docs.yml
-name: Deploy API Documentation
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy-docs:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Swagger spec
-        run: npm run swagger:generate
-
-      - name: Build Redoc static HTML
-        run: |
-          npx redoc-cli build swagger-spec.json \
-            --title "Todo API Docs" \
-            --output docs/index.html
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
-```
-
-### Versioning
-
-Quản lý version của API spec:
+### 6.3 E2E Test Auth (có JWT)
 
 ```typescript
-// src/main.ts
-import { readFileSync } from 'fs';
+// test/auth.e2e-spec.ts
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import * as request from 'supertest';
+import { AppModule } from '../src/app.module';
 
-// Lấy version từ package.json
-const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
+describe('Auth API (e2e)', () => {
+  let app: INestApplication;
+  let accessToken: string;
+  let refreshToken: string;
 
-const config = new DocumentBuilder()
-  .setTitle('Todo API')
-  .setVersion(packageJson.version)  // Đồng bộ với npm version
-  .build();
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+    await app.init();
+  });
+
+  afterAll(() => app.close());
+
+  it('POST /auth/register → 201', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ username: 'testuser', email: 'test@example.com', password: 'pass1234' })
+      .expect(201);
+
+    expect(res.body.username).toBe('testuser');
+    expect(res.body.password).toBeUndefined();
+  });
+
+  it('POST /auth/login → 200 + trả về tokens', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ username: 'testuser', password: 'pass1234' })
+      .expect(200);
+
+    expect(res.body).toHaveProperty('accessToken');
+    expect(res.body).toHaveProperty('refreshToken');
+
+    accessToken = res.body.accessToken;
+    refreshToken = res.body.refreshToken;
+  });
+
+  it('POST /auth/login với sai password → 401', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ username: 'testuser', password: 'wrong' })
+      .expect(401);
+  });
+
+  it('GET /auth/profile với token hợp lệ → 200', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/auth/profile')
+      .set('Authorization', `Bearer ${accessToken}`) // đính kèm token
+      .expect(200);
+
+    expect(res.body.username).toBe('testuser');
+  });
+
+  it('GET /auth/profile không có token → 401', async () => {
+    await request(app.getHttpServer())
+      .get('/auth/profile')
+      .expect(401);
+  });
+
+  it('POST /auth/refresh → 200 + cặp token mới', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${refreshToken}`)
+      .expect(200);
+
+    expect(res.body).toHaveProperty('accessToken');
+    expect(res.body).toHaveProperty('refreshToken');
+    // Token mới phải khác token cũ (Token Rotation)
+    expect(res.body.accessToken).not.toBe(accessToken);
+    expect(res.body.refreshToken).not.toBe(refreshToken);
+
+    accessToken = res.body.accessToken; // cập nhật token mới
+  });
+
+  it('POST /auth/logout → 200', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/auth/logout')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(res.body.message).toBe('Logged out successfully');
+  });
+});
 ```
 
-```json
-// package.json
-{
-  "version": "2.1.0",
-  "scripts": {
-    "version:patch": "npm version patch && npm run swagger:generate && git add swagger-spec.json",
-    "version:minor": "npm version minor && npm run swagger:generate && git add swagger-spec.json",
-    "version:major": "npm version major && npm run swagger:generate && git add swagger-spec.json"
-  }
-}
+---
+
+## Chạy test và xem coverage
+
+```bash
+# Chạy tất cả unit test
+npm run test
+
+# Chạy test ở chế độ watch (tự chạy lại khi có thay đổi)
+npm run test:watch
+
+# Chạy test + xuất báo cáo coverage
+npm run test:cov
+
+# Chỉ chạy test của một file cụ thể
+npx jest users.service.spec.ts
+
+# Chạy E2E test
+npm run test:e2e
 ```
+
+Kết quả coverage mẫu:
+
+```
+ PASS  src/users/users.service.spec.ts
+ PASS  src/users/users.controller.spec.ts
+
+----------|---------|----------|---------|---------|
+File      | % Stmts | % Branch | % Funcs | % Lines |
+----------|---------|----------|---------|---------|
+All files |   95.24 |    88.89 |     100 |   95.12 |
+ users/   |         |          |         |         |
+  ctrl.ts |   100   |    100   |     100 |   100   |
+  svc.ts  |   92.86 |    83.33 |     100 |   92.59 |
+----------|---------|----------|---------|---------|
+```
+
+---
+
+## Tóm tắt so sánh 3 loại test
+
+| | Unit Test | Integration Test | E2E Test |
+|---|---|---|---|
+| **Phạm vi** | 1 function/method | 2+ components | Toàn bộ app |
+| **Mock** | Tất cả dependency | Chỉ external (DB...) | Thường mock DB |
+| **Tốc độ** | Rất nhanh (ms) | Trung bình | Chậm (s) |
+| **File** | `*.spec.ts` | `*.spec.ts` | `test/*.e2e-spec.ts` |
+| **Công cụ** | Jest | Jest + TestingModule | Jest + Supertest |
+| **Phát hiện lỗi** | Logic đơn lẻ | Tương tác components | Luồng người dùng |
+| **Tỉ lệ nên có** | ~70% | ~20% | ~10% |
+
+> **Quy tắc vàng:** Viết nhiều Unit Test, ít Integration Test, và một số ít E2E Test cho các luồng quan trọng nhất — đây là mô hình **Testing Pyramid**.
