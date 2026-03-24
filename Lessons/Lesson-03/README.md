@@ -423,6 +423,18 @@ src/
 
 Xem chi tiết [NestJS Fundamentals](./NestJS-Fundamentals.md)
 
+
+### 2.6 Module CLI
+
+Bạn có thể sử dụng Nest CLI để tạo module nhanh chóng:
+
+```bash
+nest generate module modules/books
+```
+
+hoặc tự tạo thủ công theo cấu trúc đề xuất ở trên.
+
+
 ---
 
 ## 3. Controller
@@ -742,6 +754,15 @@ export class BooksController {
 }
 ```
 
+### 3.3 Controller CLI
+
+Bạn có thể sử dụng Nest CLI để tạo controller nhanh chóng:
+
+```bash
+nest generate controller modules/books
+```
+
+
 ---
 
 ## 4. Service & Provider
@@ -896,6 +917,12 @@ export class BooksService {
     return this.books.filter(book => book.author.includes('Martin'));
   }
 }
+```
+
+Bạn có thể sử dụng Nest CLI để tạo service nhanh chóng:
+
+```bash
+nest generate service modules/books
 ```
 
 ### 4.2 Provider là gì?
@@ -1454,3 +1481,110 @@ export class BooksControllerV2 {
   }
 }
 ```
+
+## 6. NestJS CLI
+
+Một số lệnh NestJS CLI phổ biến:
+
+### 🔹 6.1. Core (quan trọng nhất – dùng hàng ngày)
+
+```bash
+nest g module <name>        # mo
+nest g controller <name>    # co
+nest g service <name>       # s
+nest g resource <name>      # res (CRUD full)
+```
+
+👉 Đây là 4 lệnh bạn dùng nhiều nhất khi build REST API
+
+---
+
+### 🔹 6.2. Request lifecycle (xử lý request nâng cao)
+
+```bash
+nest g middleware <name>    # mi
+nest g guard <name>         # gu
+nest g interceptor <name>   # itc
+nest g pipe <name>          # pi
+nest g filter <name>        # f
+```
+
+👉 Mapping với flow request:
+
+```
+Middleware → Guard → Interceptor → Pipe → Controller → Service
+                              ↓
+                          Filter (catch error)
+```
+
+---
+
+### 🔹 6.3. Code structure / reusable
+
+```bash
+nest g class <name>         # cl
+nest g interface <name>     # itf
+nest g provider <name>      # pr
+nest g decorator <name>     # d
+```
+
+👉 Dùng khi:
+
+* Tạo util class
+* Custom decorator (`@CurrentUser`)
+* Abstraction (interface)
+
+---
+
+### 🔹 6.4. Realtime / GraphQL
+
+```bash
+nest g gateway <name>       # ga (WebSocket)
+nest g resolver <name>      # r  (GraphQL)
+```
+
+---
+
+### 🔹 6.5. Project / Architecture
+
+```bash
+nest g application <name>   # application
+nest g sub-app <name>       # app (monorepo)
+nest g library <name>       # lib
+nest g configuration <name> # config
+```
+
+👉 Dùng khi:
+
+* Monorepo
+* Microservices
+* Shared library
+
+---
+
+### 🔹 6.6. Ví dụ
+
+#### ✅ CRUD API cơ bản:
+
+```bash
+nest g resource users
+# Không tạo file test
+nest g resource products --no-spec
+```
+
+#### ✅ Tách tay theo clean architecture:
+
+```bash
+nest g module users
+nest g controller users
+nest g service users
+```
+
+#### ✅ Advanced:
+
+```bash
+nest g guard auth
+nest g interceptor logging
+nest g pipe validation
+```
+

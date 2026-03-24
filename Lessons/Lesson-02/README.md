@@ -336,6 +336,90 @@ Trong NestJS, **Module** đóng vai trò là đơn vị tổ chức cơ bản v�
 *   **Tái sử dụng mã nguồn:** Thông qua thuộc tính `exports`, một Module có thể chia sẻ các Provider của mình để các Module khác có thể sử dụng lại, giúp tránh lặp lại mã (DRY).
 *   **Điểm khởi đầu (Root Module):** Mọi ứng dụng NestJS đều có ít nhất một Module gốc (`AppModule`), đóng vai trò là điểm bắt đầu để khởi tạo cây phụ thuộc của toàn bộ ứng dụng.
 
+
+### 3.5 Cấu trúc thư mục đề xuất
+
+Dưới đây là cấu trúc thư mục đề xuất cho một dự án NestJS quy mô vừa đến lớn, giúp tổ chức mã nguồn một cách rõ ràng và dễ bảo trì:
+
+```
+src/
+├── common/
+│   ├── configs/
+│   ├── constants/
+│   ├── decorators/
+│   ├── guards/
+│   ├── filters/
+│   ├── interceptors/
+│   ├── pipes/
+│   ├── providers/
+│   └── utils/
+│
+├── modules/
+│   ├── users/
+│   │   ├── controllers/
+│   │   │   ├── admin-users.controller.ts (Dành cho admin)
+│   │   │   ├── public-users.controller.ts (Dành cho public)
+│   │   │
+│   │   ├── services/
+│   │   │   ├── users.service.ts
+│   │   │
+│   │   ├── dto/
+│   │   │   ├── request/
+│   │   │   │   ├── create-user.dto.ts
+│   │   │   │   ├── update-user.dto.ts
+│   │   │   │
+│   │   │   ├── response/
+│   │   │       ├── admin-user.response.dto.ts
+│   │   │       ├── public-user.response.dto.ts
+│   │   │
+│   │   ├── repositories/
+│   │   │   ├── users.repository.ts
+│   │   │
+│   │   ├── entities/
+│   │   │   ├── user.entity.ts
+│   │   │
+│   │   ├── users.module.ts
+│   │
+│   ├── auth/
+│   │   ├── controllers/
+│   │   │   ├── admin-auth.controller.ts 
+│   │   │   ├── public-auth.controller.ts
+│   │   │
+│   │   ├── services/
+│   │   │   ├── auth.service.ts
+│   │   │
+│   │   ├── dto/
+│   │   │   ├── request/
+│   │   │   │   ├── login.dto.ts
+│   │   │   │   ├── register.dto.ts
+│   │   │   │
+│   │   │   ├── response/
+│   │   │       ├── auth.response.dto.ts
+│   │   │
+│   │   ├── repositories/
+│   │   │   ├── auth.repository.ts
+│   │   │
+│   │   ├── entities/
+│   │   │   ├── (optional)
+│   │   │
+│   │   ├── auth.module.ts
+│   └──shared
+|       ├── dto/
+|       ├── interfaces/
+|       └── services/
+│
+├── app.module.ts
+└── main.ts
+```
+
+Giải thích:
+*   **common/**: Chứa các thành phần dùng chung như cấu hình, hằng số, decorator, guard, filter, interceptor, pipe, provider và các tiện ích (utils) mà có thể được sử dụng lại ở nhiều nơi trong ứng dụng.
+*   **modules/**: Chứa các module chính của ứng dụng, mỗi module đại diện
+cho một tính năng hoặc một phần chức năng cụ thể. Mỗi module có thể có cấu trúc con riêng để tổ chức controllers, services, DTOs, repositories và entities liên quan đến tính năng đó.
+*   **app.module.ts**: Module gốc của ứng dụng, nơi tất cả các module khác được import vào.
+*   **main.ts**: Điểm khởi đầu của ứng dụng, nơi ứng dụng được khởi tạo và server được lắng nghe.
+* **shared/**: Chứa các thành phần dùng chung giữa các module, như DTOs, interfaces, hoặc các service dùng chung.
+
 ---
 
 ## 4. Config & Environment (Cấu hình ứng dụng)
@@ -410,6 +494,9 @@ NODE_ENV=development
 
 ```ts
 //src/app.module.ts
+
+import { ConfigModule } from '@nestjs/config';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -453,7 +540,8 @@ await app.listen(port, () => {
 
 ```ts
 ConfigModule.forRoot({
-  envFilePath: `.env.${process.env.NODE_ENV}`,
+  // Đọc file .env tương ứng với NODE_ENV
+  envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
 });
 ```
 
