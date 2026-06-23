@@ -107,6 +107,11 @@
   * Response Body
 
 
+* REST API Best Practices
+  * Naming convention cho API
+  * API Versioning
+
+
 ## Lesson 05: Build RESTful API với NestJS - Part 2
 
 * Service và Business Logic
@@ -117,10 +122,6 @@
   * Root module vs Feature module
   * @Module: imports, controllers, providers, exports
 
-
-* REST API Best Practices
-  * Naming convention cho API
-  * API Versioning
 
 ---
 
