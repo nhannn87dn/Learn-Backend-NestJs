@@ -1,4 +1,4 @@
-# Lesson 09: Authorization với NestJS
+# Lesson 10: Authorization với NestJS
 
 ## 1. Authorization là gì?
 

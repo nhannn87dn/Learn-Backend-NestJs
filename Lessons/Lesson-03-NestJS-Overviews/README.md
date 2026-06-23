@@ -1,4 +1,4 @@
-# Lesson 02 – Tìm hiểu về NestJS 
+# Lesson 03 – Tìm hiểu về NestJS 
 
 > **Mục tiêu buổi học**
 > Sau bài này, người học sẽ:

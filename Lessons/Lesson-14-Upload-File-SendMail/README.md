@@ -1,4 +1,4 @@
-# Lesson 13: Upload File và Gửi Mail với NestJS
+# Lesson 14: Upload File và Gửi Mail với NestJS
 
 ## 1. File Upload là gì?
 

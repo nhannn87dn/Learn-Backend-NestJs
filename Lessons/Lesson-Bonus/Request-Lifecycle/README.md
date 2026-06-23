@@ -1,4 +1,4 @@
-# Lesson 04 - Request Lifecycle and Data Flow
+# Request Lifecycle and Data Flow
 
 ## Mục tiêu bài học
 

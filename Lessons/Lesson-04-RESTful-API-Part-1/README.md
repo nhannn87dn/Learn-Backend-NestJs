@@ -1,4 +1,4 @@
-# Lesson 03 - Tạo một RESTful API với NestJS
+# Lesson 04 - Tạo một RESTful API với NestJS - Phần 1
 
 > Mục tiêu bài học:
 >

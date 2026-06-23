@@ -1,4 +1,4 @@
-# Lesson 10 - Build a Dashboard with ReactJS
+# Lesson 11 - Build a Dashboard with ReactJS
 
 ## Mục tiêu bài học
 

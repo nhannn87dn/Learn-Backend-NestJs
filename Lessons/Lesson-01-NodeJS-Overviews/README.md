@@ -154,11 +154,21 @@ Client                    Backend                   Database
 
 👉 **NestJS là một framework chạy trên Node.js**
 
+
 ---
 
-### 2.2 Kiến trúc Event Loop 
+### 2.2 Node.js hoạt động như thế nào?
 
-#### 2.2.1 Vấn đề của mô hình truyền thống (Thread-per-request)
+
+Nếu như các ứng dụng web truyền thống, các request tạo ra một luồng xử lý yêu cầu mới và chiếm RAM của hệ thống thì việc tài nguyên của hệ thống sẽ được sử dụng không hiệu quả. Chính vì lẽ đó giải pháp mà Node js đưa ra là sử dụng luồng đơn (Single-Threaded), kết hợp với non-blocking I/O để thực thi các request, cho phép hỗ trợ hàng chục ngàn kết nối đồng thời.
+
+![nodejs](./img/node-proceess.bmp)
+
+---
+
+### 2.3 Kiến trúc Event Loop 
+
+#### 2.3.1 Vấn đề của mô hình truyền thống (Thread-per-request)
 
 Trong các backend truyền thống:
 
@@ -178,7 +188,7 @@ Trong các backend truyền thống:
 
 ---
 
-#### 2.2.2 Mô hình Event Loop của Node.js
+#### 2.3.2 Mô hình Event Loop của Node.js
 
 Node.js sử dụng mô hình:
 
@@ -204,11 +214,208 @@ Node.js sử dụng mô hình:
 
    * Call Stack rỗng → lấy callback xử lý
 
+
 📌 Ý nghĩa:
 
 * **Không block server**
 * Xử lý hàng nghìn request đồng thời
 * Hiệu quả với I/O-bound task
+
+
+
+![event-loop](./img/event-loop.png)
+
+**Giải thích:**
+
+Quy trình hoạt động của Event Loop trong Node.js được diễn ra tuần tự theo các bước cực kỳ logic như sau:
+
+---
+
+##### 1. Khởi chạy Ứng dụng (1 - Application)
+
+Mã nguồn JavaScript của bạn bắt đầu được nạp và chạy. Luồng chính (Main Thread) sẽ quét qua các dòng code từ trên xuống dưới.
+
+##### 2. Thực thi đồng bộ tại Call Stack (2)
+
+Các hàm đồng bộ (Synchronous) được đưa vào **Call Stack** để thực thi ngay lập tức theo cơ chế cái nào vào sau thì ra trước.
+
+* Nếu gặp tác vụ nhẹ, nó xử lý xong và xóa khỏi Stack.
+* Nếu gặp các tác vụ bất đồng bộ nặng (như đọc file, gọi API, truy vấn DB), Node.js sẽ **giao việc (Task offloading)** xuống tầng dưới và không bắt luồng chính phải đợi.
+
+##### 3. Trái tim điều phối: Event Loop (3)
+
+**Event Loop** chính là chiếc vòng xoay trung tâm quản lý toàn bộ vòng đời của các tác vụ bất đồng bộ. Nó chạy liên tục qua 6 pha (Phase) ổn định được đánh số từ **1 đến 6 màu vàng/trắng bên trong vòng tròn**:
+
+* **Phase 1 (Timers):** Chạy các hàm hẹn giờ như `setTimeout()` và `setInterval()`.
+* **Phase 2 & 3 (Pending, Idle/Prepare):** Các pha xử lý nội bộ của thư viện Libuv.
+* **Phase 4 (Poll):** Pha quan trọng nhất, nơi đón nhận các sự kiện I/O mới từ hệ thống.
+* **Phase 5 (Check):** Chạy các hàm cài đặt bởi `setImmediate()`.
+* **Phase 6 (Close):** Xử lý dọn dẹp các kết nối bị đóng (như tắt kết nối mạng).
+
+##### 4. Kiểm tra hàng đợi ưu tiên (4 - Microtask Queue)
+
+Đây là "làn đường ưu tiên đặc biệt". Bất cứ khi nào **Call Stack (2)** trống, hoặc **Event Loop (3)** chuẩn bị chuyển từ pha này sang pha khác, Node.js sẽ ngay lập tức check **Microtask Queue**.
+
+* Toàn bộ các callback nằm trong `process.nextTick()` và `Promises.resolve()` tại đây sẽ được "vét" sạch và đẩy lên Call Stack để chạy trước, chặn đầu tất cả các hàng đợi khác.
+
+##### 5. Xử lý đa luồng ngầm tại Libuv / Thread Pool (5)
+
+Các tác vụ bất đồng bộ nặng sau khi bị đẩy xuống từ bước 2 sẽ được hệ thống đa luồng của **Libuv** (gồm các Thread từ T1 đến T6) xử lý ngầm ở phần cứng (như đọc ổ đĩa, kết nối Internet, truy cập Database, xử lý mã hóa Crypto). Điều này giúp luồng chính của Node.js không bao giờ bị nghẽn (Non-blocking I/O).
+
+##### 6. Xếp hàng chờ thực thi (6 - Callback Queue)
+
+Sau khi các luồng ở **Thread Pool (5)** hoàn thành xong nhiệm vụ (ví dụ: đã đọc xong file), kết quả và hàm phản hồi (Callback) của chúng sẽ được đẩy vào **Callback Queue** để xếp hàng.
+
+Khi **Event Loop (3)** quay đến pha tương ứng (ví dụ: Phase 4 Poll), nó sẽ nhặt các callback đang nằm chờ ở Callback Queue này, kiểm tra xem Call Stack có trống không, rồi đẩy ngược lên **Call Stack (2)** để luồng chính thực thi nốt đoạn code xử lý kết quả cho người dùng.
+
+---
+
+#### 2.3.3 Code ví dụ về Event Loop
+
+```js
+const fs = require('fs');
+
+console.log('--- 1. START (Call Stack chạy đồng bộ) ---');
+
+// 1. Timers Phase (Phase 1 của Event Loop)
+setTimeout(() => {
+    console.log('--- 6. setTimeout 0ms (Event Loop - Phase 1: Timers) ---');
+}, 0);
+
+// 2. Check Phase (Phase 5 của Event Loop)
+setImmediate(() => {
+    console.log('--- 7. setImmediate (Event Loop - Phase 5: Check) ---');
+});
+
+// 3. Microtask Queue (Ưu tiên cao - Chạy ngay khi Call Stack trống)
+Promise.resolve().then(() => {
+    console.log('--- 4. Promise.resolve (Microtask Queue) ---');
+});
+
+process.nextTick(() => {
+    console.log('--- 3. process.nextTick (Microtask Queue - Ưu tiên tuyệt đối) ---');
+});
+
+// 4. I/O Polling (Phase 4) & Thread Pool (Thành phần số 5 & 6)
+// Đọc file thử nghiệm (tác vụ bất đồng bộ nặng)
+fs.readFile(__filename, () => {
+    console.log('\n--- Đang ở trong I/O Callback (Phase 4: Poll) ---');
+    
+    // Khi đang ở trong Pha Poll, nếu ta đăng ký tiếp setTimeout và setImmediate:
+    setTimeout(() => {
+        console.log('--- 9. setTimeout bên trong I/O (Chờ đến vòng lặp sau) ---');
+    }, 0);
+
+    setImmediate(() => {
+        console.log('--- 8. setImmediate bên trong I/O (Chạy ngay ở Phase 5 tiếp theo) ---');
+    });
+});
+
+console.log('--- 2. END (Call Stack chạy đồng bộ xong) ---');
+
+```
+
+Khi bạn chạy đoạn code trên, kết quả trả về sẽ luôn tuân theo quy trình tuần tự của sơ đồ:
+
+```
+--- 1. START (Call Stack chạy đồng bộ) ---
+--- 2. END (Call Stack chạy đồng bộ xong) ---
+--- 3. process.nextTick (Microtask Queue - Ưu tiên tuyệt đối) ---
+--- 4. Promise.resolve (Microtask Queue) ---
+--- 6. setTimeout 0ms (Event Loop - Phase 1: Timers) ---
+--- 7. setImmediate (Event Loop - Phase 5: Check) ---
+
+--- Đang ở trong I/O Callback (Phase 4: Poll) ---
+--- 8. setImmediate bên trong I/O (Chạy ngay ở Phase 5 tiếp theo) ---
+--- 9. setTimeout bên trong I/O (Chờ đến vòng lặp sau) ---
+```
+
+Dưới đây là ví dụ mã nguồn mô tả đầy đủ cách các thành phần trong sơ đồ trên (Call Stack, Microtask Queue, Event Loop các Phase) tranh chấp thứ tự thực thi với nhau.
+
+Bạn có thể chạy đoạn code này bằng Node.js để thấy trực tiếp kết quả:
+
+```javascript
+const fs = require('fs');
+
+console.log('--- 1. START (Call Stack chạy đồng bộ) ---');
+
+// 1. Timers Phase (Phase 1 của Event Loop)
+setTimeout(() => {
+    console.log('--- 6. setTimeout 0ms (Event Loop - Phase 1: Timers) ---');
+}, 0);
+
+// 2. Check Phase (Phase 5 của Event Loop)
+setImmediate(() => {
+    console.log('--- 7. setImmediate (Event Loop - Phase 5: Check) ---');
+});
+
+// 3. Microtask Queue (Ưu tiên cao - Chạy ngay khi Call Stack trống)
+Promise.resolve().then(() => {
+    console.log('--- 4. Promise.resolve (Microtask Queue) ---');
+});
+
+process.nextTick(() => {
+    console.log('--- 3. process.nextTick (Microtask Queue - Ưu tiên tuyệt đối) ---');
+});
+
+// 4. I/O Polling (Phase 4) & Thread Pool (Thành phần số 5 & 6)
+// Đọc file thử nghiệm (tác vụ bất đồng bộ nặng)
+fs.readFile(__filename, () => {
+    console.log('\n--- Đang ở trong I/O Callback (Phase 4: Poll) ---');
+    
+    // Khi đang ở trong Pha Poll, nếu ta đăng ký tiếp setTimeout và setImmediate:
+    setTimeout(() => {
+        console.log('--- 9. setTimeout bên trong I/O (Chờ đến vòng lặp sau) ---');
+    }, 0);
+
+    setImmediate(() => {
+        console.log('--- 8. setImmediate bên trong I/O (Chạy ngay ở Phase 5 tiếp theo) ---');
+    });
+});
+
+console.log('--- 2. END (Call Stack chạy đồng bộ xong) ---');
+
+```
+
+---
+
+## Giải thích thứ tự in ra màn hình (Kết quả thực tế)
+
+Khi bạn chạy đoạn code trên, kết quả trả về sẽ luôn tuân theo quy trình tuần tự của sơ đồ:
+
+```text
+--- 1. START (Call Stack chạy đồng bộ) ---
+--- 2. END (Call Stack chạy đồng bộ xong) ---
+--- 3. process.nextTick (Microtask Queue - Ưu tiên tuyệt đối) ---
+--- 4. Promise.resolve (Microtask Queue) ---
+--- 6. setTimeout 0ms (Event Loop - Phase 1: Timers) ---
+--- 7. setImmediate (Event Loop - Phase 5: Check) ---
+
+--- Đang ở trong I/O Callback (Phase 4: Poll) ---
+--- 8. setImmediate bên trong I/O (Chạy ngay ở Phase 5 tiếp theo) ---
+--- 9. setTimeout bên trong I/O (Chờ đến vòng lặp sau) ---
+
+```
+
+---
+
+ Phân tích 3 trường hợp thực thi cụ thể trong Code:
+
+**Trường hợp 1: Đồng bộ (Call Stack) luôn đi trước**
+
+* `START` và `END` được in ra đầu tiên. Lý do: Chúng là mã nguồn đồng bộ thuần túy, được nạp thẳng vào **Call Stack (2)** và chạy ngay lập tức, không cần đợi Event Loop.
+
+**Trường hợp 2: Cuộc chiến ở Làn đường ưu tiên (Microtask Queue)**
+
+* Sau khi `END` in xong (tức là Call Stack trống), Node.js chưa thèm ngó tới Event Loop ngay mà sẽ "vét" sạch **Microtask Queue (4)**.
+* Trong Microtask, `process.nextTick()` có đặc quyền tối cao, luôn được ưu tiên chạy trước cả `Promise.resolve()`. Vì vậy số 3 in ra trước số 4.
+
+**Trường hợp 3: Sự khác biệt giữa `setTimeout` và `setImmediate`**
+
+* **Ở luồng ngoài cùng:** `setTimeout(0ms)` và `setImmediate()` có thứ tự chạy phụ thuộc vào hiệu năng máy tại thời điểm đó (đôi khi setTimeout chạy trước, đôi khi ngược lại).
+* **Ở BÊN TRONG một I/O Callback (`fs.readFile`):** * Lúc này Event Loop đang dừng ở **Phase 4 (Poll)** để xử lý hàm đọc file.
+* Ngay sau Phase 4 sẽ là **Phase 5 (Check)**. Do `setImmediate()` đăng ký callback cho Phase 5, nên nó sẽ **chạy ngay lập tức** sau khi hàm đọc file kết thúc.
+* Trong khi đó, `setTimeout()` phải đợi Event Loop quay hết một vòng, trở lại **Phase 1 (Timers)** ở vòng lặp (Tick) tiếp theo mới được thực thi. Vì vậy, số 8 luôn luôn in trước số 9.
 
 ---
 
@@ -258,8 +465,26 @@ Blocking I/O là khi:
 📌 Ví dụ:
 
 ```ts
-readFileSync('data.txt'); // block
+const fs = require("fs");
+
+console.log("Start");
+
+const data = fs.readFileSync("file.txt", "utf8"); // Blocking - Node.js phải chờ file đọc xong.
+console.log(data); // Chỉ thực hiện sau khi đọc file xong.
+
+console.log("End");
 ```
+
+**Kết quả:**
+
+```
+Start
+<nội dung file.txt>
+End
+```
+
+**Giải thích**: Trong ví dụ này, `fs.readFileSync` là một tác vụ **blocking**. Node.js sẽ phải đợi file được đọc xong trước khi tiếp tục chạy các dòng mã sau đó. Do đó, `console.log('End')` chỉ được in ra sau khi file đã được đọc.
+
 
 ---
 
@@ -271,12 +496,42 @@ Non-blocking I/O cho phép:
 * Tiếp tục xử lý request khác
 
 ```ts
-readFile('data.txt', callback);
+const fs = require("fs");
+
+console.log("Start");
+
+fs.readFile("file.txt", "utf8", (err, data) => {
+  if (err) throw err;
+  console.log(data); // Chỉ in ra sau khi file đọc xong (callback).
+});
+
+console.log("End");
 ```
+
+
+**Kết quả:**
+
+```
+Start
+End
+<nội dung file.txt>
+```
+
+**Giải thích**: Ở đây, `fs.readFile` là một tác vụ **non-blocking**. Node.js không đợi file được đọc xong để chạy `console.log('End')`. Thay vào đó, nó tiếp tục thực thi mã, và sau khi file được đọc xong, callback sẽ được gọi để in nội dung file ra. Do đó, bạn thấy `End` được in trước khi nội dung file xuất hiện.
+
 
 📌 Node.js được thiết kế **non-blocking từ gốc**
 
 👉 Đây là lý do Node.js phù hợp để làm API
+
+---
+
+🔶 Sự khác biệt chính giữa Blocking và Non-blocking
+
+- **Blocking**: Node.js **đợi** tác vụ hoàn thành trước khi xử lý tiếp. Điều này làm gián đoạn event loop và chặn các tác vụ khác.
+  - Ví dụ: `fs.readFileSync`, `http.requestSync`.
+- **Non-blocking**: Node.js **không đợi** mà tiếp tục xử lý các tác vụ khác. Sau khi tác vụ hoàn thành, nó sẽ thực thi một callback.
+  - Ví dụ: `fs.readFile`, `http.request`.
 
 ---
 
@@ -551,399 +806,6 @@ const totalAge = users.reduce((sum, u) => sum + u.age, 0);
 
 ---
 
-## 4️⃣ TypeScript cơ bản 
-
-Tìm hiểu thêm tại link: https://www.w3schools.com/typescript/
-
-### 4.1 TypeScript là gì?
-
-TypeScript là:
-
-* Superset của JavaScript
-* Thêm **Static Typing**
-* Compile về JavaScript
-
-📌 Lợi ích:
-
-* Phát hiện lỗi sớm
-* Code dễ bảo trì
-* Tối ưu IDE, refactor
-
-👉 NestJS **bắt buộc dùng TypeScript**
-
----
-
-### 4.2 `type` và `interface` (Phân biệt rõ)
-
-| Tiêu chí | type | interface |
-| -------- | ---- | --------- |
-| Extend   | Có   | Có        |
-| Merge    | ❌    | ✅         |
-| Union    | ✅    | ❌         |
-
-👉 DTO trong NestJS thường dùng `class` + `interface`
-
----
-
-### 4.3 Class & Access Modifier
-
-#### 4.3.1 Class trong JavaScript
-
-
-Trong ES6, **class** là một cú pháp (syntax sugar) được giới thiệu để:
-
-* Viết JavaScript theo phong cách **Object-Oriented Programming (OOP)**
-* Giúp code:
-
-  * Dễ đọc
-  * Dễ tổ chức
-  * Dễ mở rộng
-
-📌 **Lưu ý quan trọng**
-JavaScript **không phải ngôn ngữ OOP thuần** như Java hay C#
-👉 `class` trong JS thực chất được xây dựng **trên prototype**
-
-
-#### 4.3.2 Vì sao backend (NestJS) cần Class?
-
-Backend API cần:
-
-* Đóng gói logic
-* Quản lý trạng thái
-* Dependency Injection
-* Tái sử dụng code
-
-👉 NestJS **xây dựng toàn bộ framework dựa trên class**
-
-#### 4.3.3 Khai báo Class trong ES6
-
-**Cú pháp cơ bản**
-
-```ts
-class User {
-  constructor(name, age) {
-    this.name = name;
-    this.age = age;
-  }
-
-  getInfo() {
-    return `${this.name} - ${this.age}`;
-  }
-}
-```
-
-📌 Giải thích:
-
-* `class User`: định nghĩa kiểu đối tượng
-* `constructor`: hàm khởi tạo
-* `this`: tham chiếu tới instance
-
-#### 4.3.4 Tạo object từ class
-
-
-```js
-const user1 = new User('Tomy', 25);
-console.log(user1.getInfo());
-```
-
-👉 Mỗi request trong backend **có thể làm việc với object kiểu này**
-
-#### 4.3.5 Cấu trúc Class trong TypeScript
-
-📌**Constructor là gì?**
-
-Constructor là một phương thức đặc biệt trong class, được gọi khi tạo một instance của class. Nó dùng để khởi tạo các thuộc tính của đối tượng.
-
-Ví dụ:
-
-```ts
-class User {
-  name: string;
-  age: number;
-
-  constructor(name: string, age: number) {
-    this.name = name;
-    this.age = age;
-  }
-}
-```
-
-Khi tạo object:
-
-```ts
-const user1 = new User('Tomy', 25);
-```
-
-📌**Method trong class**
-
-Method là các hàm được định nghĩa bên trong class, dùng để thực hiện các hành động liên quan đến đối tượng.
-
-Ví dụ:
-
-```ts
-class User {
-  // ...
-  getInfo(): string {
-    return `${this.name} - ${this.age}`;
-  }
-}
-```
-
-Gọi method:
-
-```ts
-console.log(user1.getInfo());
-```
-
-
-
-#### 4.3.6 Access Modifier trong TypeScript
-
-TypeScript thêm **access modifier** để kiểm soát truy cập:
-
-* Đóng gói logic
-* Bảo vệ dữ liệu nội bộ
-
-| Modifier   | Mô tả                          |
-| ---------- | ------------------------------ |
-| `public`   | Mặc định, truy cập từ bên ngoài |
-| `private`  | Chỉ truy cập trong class       |
-| `protected`| Truy cập trong class & subclass |
-
-Ví dụ:
-
-```ts
-class User {
-    public name: string;
-    private age: number;
-
-    constructor(name: string, age: number) {
-        this.name = name;
-        this.age = age;
-    }
-
-    protected getAge(): number {
-        return this.age;
-    }
-    }
-```
-
-Giải thích:
-* `name` có thể truy cập từ bên ngoài
-* `age` chỉ truy cập trong class qua method `getAge()`
-* `protected` dùng khi kế thừa class
-* Giúp bảo vệ dữ liệu, tránh truy cập trực tiếp
-* Tăng tính an toàn và rõ ràng cho class
-
-👉 NestJS dùng access modifier để quản lý service, controller
-
----
-
-#### 4.3.7 Inheritance (Kế thừa) trong ES6 Class
-
-Kế thừa cho phép một class (subclass) nhận lại các thuộc tính và phương thức từ class khác (superclass).
-
-Lợi ích:
-* Tái sử dụng code
-* Mở rộng chức năng
-
-Ví dụ:
-
-```ts
-class Animal {
-  constructor(name) {
-    this.name = name;
-  }
-
-  speak() {
-    console.log(`${this.name} makes a sound.`);
-  }
-}
-
-class Dog extends Animal {
-  constructor(name, breed) {
-    super(name);
-    this.breed = breed;
-  }
-
-  speak() {
-    console.log(`${this.name} barks.`);
-  }
-}
-```
-
-📌 Giải thích:
-
-* `extends`: kế thừa
-* `class Dog extends Animal`: `Dog` kế thừa từ `Animal`
-* `super(name)`: gọi constructor của lớp cha
-* `speak()` trong `Dog` override lại phương thức của lớp cha
-
-👉 NestJS dùng kế thừa để tạo các service, controller kế thừa từ lớp cha
-
----
-
-#### 4.3.8 Abstract Class trong TypeScript
-
-**Abstract class** là một lớp không thể được khởi tạo trực tiếp. Nó được thiết kế để làm lớp cha cho các lớp con khác.
-
-Ví dụ:
-
-```ts
-abstract class Animal {
-  abstract makeSound(): void;
-
-  move(): void {
-    console.log('Moving along!');
-  }
-}
-class Dog extends Animal {
-  makeSound(): void {
-    console.log('Bark!');
-  }
-}
-```
-
-📌 Giải thích:
-* `abstract class Animal`: định nghĩa lớp trừu tượng
-* `abstract makeSound()`: phương thức trừu tượng, phải được lớp con triển khai
-* `Dog` kế thừa `Animal` và triển khai `makeSound()`
-* Giúp định nghĩa giao diện chung cho các lớp con
-
-#### 4.3.9 Interface trong TypeScript
-**Interface** định nghĩa cấu trúc của một đối tượng hoặc lớp mà không cung cấp triển khai cụ thể.
-Ví dụ:
-
-```ts
-interface IUser {
-  name: string;
-  age: number;
-  getInfo(): string;
-}
-class User implements IUser {
-  constructor(public name: string, public age: number) {}
-
-  getInfo(): string {
-    return `${this.name} - ${this.age}`;
-  }
-}
-```
-
-📌 Giải thích:
-* `interface IUser`: định nghĩa giao diện
-* `class User implements IUser`: lớp `User` tuân theo giao diện `IUser
-* Giúp đảm bảo lớp tuân theo cấu trúc đã định nghĩa
----
-
-#### 4.3.10 Static Members trong TypeScript
-
-**Static members** là các thuộc tính và phương thức thuộc về lớp thay vì các instance của lớp đó.
-
-Ví dụ:
-
-```ts
-class MathUtil {
-  static sum(a, b) {
-    return a + b;
-  }
-}
-```
-
-📌 Gọi:
-
-```js
-MathUtil.sum(1, 2);
-```
-
-Giải thích:
-* `static sum`: phương thức tĩnh
-* Gọi trực tiếp từ lớp, không cần tạo instance
-* Thường dùng cho các hàm tiện ích
-
-### 4.4 Generics
-
-Generics giúp:
-
-* Tái sử dụng code
-* Giữ an toàn kiểu dữ liệu
-
-👉 NestJS dùng generics cho:
-
-* Response
-* Repository pattern
-
-Ví dụ:
-
-```ts
-function response<T>(data: T): T {
-  return data;
-}
-```
-
-Gọi hàm với kiểu cụ thể:
-
-```ts
-response<string>('Hello');
-response<number>(123);
-```
-
-
----
-
-### 4.5 Modules trong TypeScript
-
-Modules là cách tổ chức code thành các file riêng biệt, giúp:
-
-* Quản lý tốt hơn
-* Tái sử dụng
-
-Ví dụ:
-
-```ts
-// math.ts
-export function add(a: number, b: number): number {
-  return a + b;
-}
-
-// app.ts
-import { add } from './math';
-console.log(add(2, 3));
-```
-
-Giải thích:
-* `export`: xuất hàm, biến từ module
-* `import`: nhập hàm, biến từ module khác
-* Giúp tách biệt logic, dễ bảo trì
-
-📌 Default Export là gì?
-
-Mỗi module chỉ có thể có một default export, được sử dụng khi muốn xuất một giá trị chính từ module đó.
-
-Ví dụ:
-
-```ts
-// math.ts
-function add(a: number, b: number): number {
-  return a + b;
-}
-
-function subtract(a: number, b: number): number {
-  return a - b;
-}
-export default { add, subtract };
-```
-Gọi default export:
-
-```ts
-import math from './math';
-console.log(math.add(2, 3));
-console.log(math.subtract(5, 2));
-```
-
-* Mỗi file chỉ có **1 default export**
-* Import không cần ngoặc `{}`
-
----
 
 ## 5️⃣ NPM vs Yarn vs PNPM
 

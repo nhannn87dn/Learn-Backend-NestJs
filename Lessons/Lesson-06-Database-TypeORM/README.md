@@ -1,4 +1,4 @@
-# Lesson 05 - Kết nối Database
+# Lesson 06 - Kết nối Database
 
 ## Mục tiêu bài học
 
