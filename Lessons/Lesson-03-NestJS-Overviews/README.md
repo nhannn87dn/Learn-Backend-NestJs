@@ -697,6 +697,9 @@ export class AppModule {}
 Nâng cao: Tìm hiểu về cách cấu hình từng phần cho module khi nó được load với `Partial registration` tại dây: [ConfigModule - Partial Registration](https://docs.nestjs.com/techniques/configuration#partial-registration).
 
 
+Hoặc sử dụng `Zod` để validate (Khuyến nghị) xem tại đây: [Zod validation](./zod-validation.md)
+
+
 
 ---
 
