@@ -2,8 +2,6 @@
 
 > **Mục tiêu buổi học**
 >
-> Sau bài này, người học sẽ:
->
 > * Hiểu **cache là gì** và vì sao backend cần cache
 > * Biết khi nào nên dùng cache và khi nào không nên cache
 > * Cấu hình được **In-Memory Cache** trong NestJS

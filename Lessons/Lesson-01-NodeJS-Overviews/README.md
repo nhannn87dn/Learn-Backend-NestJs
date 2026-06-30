@@ -1,7 +1,6 @@
 # 📘 Lesson 01 – Kiến thức nền cho NestJS RESTful API
 
 > **Mục tiêu buổi học**
-> Sau bài này, người học sẽ:
 >
 > * Hiểu **Backend là gì** và vai trò của Backend Developer
 > * Hiểu **Node.js** hoạt động như thế nào (Event Loop, Non-blocking I/O)

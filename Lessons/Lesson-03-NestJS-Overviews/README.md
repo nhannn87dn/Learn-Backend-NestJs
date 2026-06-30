@@ -1,7 +1,6 @@
 # Lesson 03 – Tìm hiểu về NestJS 
 
 > **Mục tiêu buổi học**
-> Sau bài này, người học sẽ:
 >
 > * Hiểu **NestJS là gì và vì sao nên dùng**
 > * Nắm được **kiến trúc cốt lõi của NestJS**

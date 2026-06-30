@@ -2,33 +2,12 @@
 
 > **Mục tiêu buổi học**
 >
-> Sau bài này, người học sẽ:
 >
 > * Hiểu vai trò của **TypeScript** trong hệ sinh thái NestJS
 > * Nắm được các kiểu dữ liệu, `function`, `type`, `interface`, `enum`, `generics`, `module`, `decorator`
 > * Hiểu cách xây dựng `class`, `object`, `constructor`, `properties`, `methods`
 > * Hiểu 4 tính chất OOP: **Encapsulation, Inheritance, Abstraction, Polymorphism**
 > * Biết cách áp dụng OOP khi viết **DTO, Entity, Controller, Service, Repository** trong NestJS
-
----
-
-## Thứ tự học đề xuất
-
-Bài này nên đi theo thứ tự sau:
-
-```txt
-TypeScript là gì
-  -> Kiểu dữ liệu
-  -> Function
-  -> Type, Interface, Enum, Generics
-  -> Module, Namespace, Decorator
-  -> Class và Object
-  -> Access Modifier, Static
-  -> 4 tính chất OOP
-  -> Áp dụng vào NestJS
-```
-
-Lý do: người học cần hiểu kiểu dữ liệu và function trước, sau đó mới học cách gom dữ liệu và hành vi vào `class`. Khi đã hiểu `class`, các khái niệm OOP như đóng gói, kế thừa, trừu tượng và đa hình sẽ dễ tiếp thu hơn.
 
 ---
 
@@ -820,8 +799,15 @@ OOP có 4 tính chất chính:
 
 Đóng gói là che giấu dữ liệu nội bộ và chỉ cho phép tương tác qua method được kiểm soát.
 
+TypeScript cho phép bạn che giấu thông tin và bảo vệ dữ liệu bên trong class bằng các **Access Modifiers** (Phạm vi truy cập) mà JavaScript thuần không hỗ trợ mặc định ở cấp độ tường minh:
+
+* `public`: Truy cập được từ bất cứ đâu (mặc định).
+* `private`: Chỉ có thể truy cập **bên trong** chính class đó.
+* `protected`: Chỉ có thể truy cập bên trong class đó và các **class con** kế thừa từ nó.
+
 ```ts
 class BankAccount {
+  //Không thể truy cập trực tiếp từ bên ngoài class
   private balance = 0;
 
   deposit(amount: number): void {
@@ -844,6 +830,7 @@ class BankAccount {
     this.balance -= amount;
   }
 
+  // Lấy số dư hiện tại thông qua method, không truy cập trực tiếp property
   getBalance(): number {
     return this.balance;
   }
@@ -914,10 +901,12 @@ Kế thừa hữu ích, nhưng không nên lạm dụng. Trong NestJS, nhiều t
 
 Trừu tượng hóa là định nghĩa phần "cần làm gì", còn chi tiết "làm như thế nào" để class cụ thể xử lý.
 
+TypeScript hỗ trợ cực tốt tính trừu tượng thông qua **Abstract Class** (Lớp trừu tượng) và **Interface** (Giao diện) – điều mà JavaScript hoàn toàn không có.
+
 Có hai cách phổ biến để biểu diễn abstraction trong TypeScript:
 
-* `interface`
-* `abstract class`
+* **Abstract Class:** Dùng làm khuôn mẫu cho các class con, không thể khởi tạo trực tiếp bằng từ khóa `new`.
+* **Interface:** Định nghĩa một "bản hợp đồng" về các thuộc tính và phương thức mà một class bắt buộc phải có khi triển khai (`implements`).
 
 #### Interface
 
@@ -976,33 +965,7 @@ class MomoPaymentProvider extends PaymentProvider {
 
 Đa hình là khả năng một interface hoặc class cha có nhiều cách triển khai khác nhau.
 
-```ts
-interface StorageService {
-  upload(fileName: string, buffer: Buffer): Promise<string>;
-}
-
-class LocalStorageService implements StorageService {
-  async upload(fileName: string, buffer: Buffer): Promise<string> {
-    return `/uploads/${fileName}`;
-  }
-}
-
-class S3StorageService implements StorageService {
-  async upload(fileName: string, buffer: Buffer): Promise<string> {
-    return `https://s3.example.com/${fileName}`;
-  }
-}
-
-class FilesService {
-  constructor(private readonly storageService: StorageService) {}
-
-  async uploadAvatar(fileName: string, buffer: Buffer): Promise<string> {
-    return this.storageService.upload(fileName, buffer);
-  }
-}
-```
-
-`FilesService` có thể dùng `LocalStorageService` khi dev local và `S3StorageService` khi production mà không cần đổi logic chính.
+Tính đa hình cho phép các class con định nghĩa lại (override) các phương thức của class cha để phù hợp với đặc thù của chúng.
 
 Một ví dụ đa hình qua kế thừa:
 
@@ -1021,6 +984,33 @@ animals.forEach((animal) => {
 ```
 
 `Dog` và `Cat` đều là `Animal`, nhưng `speak()` trả về kết quả khác nhau.
+
+Ví dụ khác về đa hình:
+
+```typescript
+class Hinh {
+    ve() {
+        console.log("Vẽ một hình nào đó");
+    }
+}
+
+class HinhTron extends Hinh {
+    ve() {
+        console.log("Vẽ hình tròn màu đỏ");
+    }
+}
+
+class HinhVuong extends Hinh {
+    ve() {
+        console.log("Vẽ hình vuông màu xanh");
+    }
+}
+
+// Đa hình: Cùng một hàm 've' nhưng thực thi khác nhau tùy loại đối tượng
+const danhSachHinh: Hinh[] = [new HinhTron(), new HinhVuong()];
+danhSachHinh.forEach(hinh => hinh.ve());
+
+```
 
 ---
 
