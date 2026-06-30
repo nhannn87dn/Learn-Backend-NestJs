@@ -12,6 +12,8 @@
 - Gọi API bên ngoài
 - Tính toán, validate phức tạp
 
+![Service Diagram](./img/controller-service.png)
+
 **Tại sao tách Service ra khỏi Controller?**
 
 - **Separation of Concerns**: Controller lo việc HTTP, Service lo business logic

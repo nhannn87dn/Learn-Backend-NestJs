@@ -17,6 +17,8 @@
 
 **RESTful API** là một API được thiết kế theo các nguyên tắc của REST, cho phép các ứng dụng client giao tiếp với server thông qua giao thức HTTP.
 
+![RESTful API Diagram](./img/rest-api.png)
+
 **Ví dụ thực tế:**
 Hãy tưởng tượng bạn đang xây dựng một ứng dụng quản lý thư viện sách:
 

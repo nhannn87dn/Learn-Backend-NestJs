@@ -16,6 +16,8 @@
 
 ## 1. Database trong Backend Application
 
+![Database trong Backend Application](./img/db.png)
+
 ### 1.1. Vai trò của database
 
 Database là thành phần quan trọng trong hầu hết các ứng dụng backend. Nó đóng vai trò như một nơi lưu trữ dữ liệu có cấu trúc, cho phép:
