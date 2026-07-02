@@ -89,7 +89,7 @@ UPLOAD_DIR=./uploads
 ## 4. Tạo API File Upload với Multer
 
 
-Tạo một UploadModule riêng để quản lý tất cả logic liên quan đến file upload:
+Tạo một Upload Module riêng để quản lý tất cả logic liên quan đến file upload:
 
 Cấu trúc thư mục:
 
