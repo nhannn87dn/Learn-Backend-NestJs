@@ -10,10 +10,11 @@
 * Khởi tạo ReactJS bằng Vite
 * Cấu trúc tối thiểu cho CRUD
 * Các package cần thiết
-  * React Router
-  * Axios
+  * React Router v7
+  * Axios + Axios Instance + interceptors
   * React Query
-  * Antd Design
+  * Shadcn UI
+  * React Hook Form + Zod
   * Zustand
 
 ## Kết nối ReactJS với API NestJS
