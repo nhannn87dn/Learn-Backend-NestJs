@@ -426,3 +426,18 @@
 * Deploy với PM2
 * Dockerize NestJS
 * Deploy lên VPS / Cloud
+
+---
+
+## Bonus (ngoài 16 buổi chính)
+
+Các chủ đề nâng cao, outline chi tiết tại [Lessons/Lesson-Bonus](./Lessons/Lesson-Bonus/README.md):
+
+* Bonus 01: Request Lifecycle & NestJS Fundamentals nâng cao
+* Bonus 02: Tài liệu hóa API với OpenAPI (Swagger)
+* Bonus 03: Events với EventEmitter
+* Bonus 04: Queue & Task Scheduling
+* Bonus 05: Realtime với WebSockets
+* Bonus 06: GraphQL với NestJS
+* Bonus 07: Microservices với NestJS
+* Bonus 08: Tối ưu hiệu suất

@@ -83,7 +83,7 @@ Khi được yêu cầu soạn/biên tập nội dung trong `Lessons/` (hoặc n
 
 - Văn phong: rõ ràng, thực tế, giữ thuật ngữ kỹ thuật tiếng Anh (decorator, dependency injection, middleware, guard, interceptor...) nhưng giải thích bằng tiếng Việt
 - Không giả định học viên biết khái niệm nào chưa dạy ở lesson trước
-- Mỗi lesson chi tiết dài khoảng 1800-2500 từ
+- Mỗi lesson chi tiết trong 16 buổi chính dài khoảng 1800-2500 từ. Riêng `Lessons/Lesson-Bonus/*` là tài liệu tự học/nghiên cứu sâu: không giới hạn độ dài, ưu tiên kiến thức đầy đủ và mở rộng (ví dụ, so sánh, lưu ý nâng cao) hơn là gói gọn trong outline tối thiểu
 - Code dùng NestJS phiên bản mới nhất, TypeScript strict mode, tuân thủ best practice: DTO + class-validator để validate input, TypeORM (Repository pattern) cho PostgreSQL, Mongoose cho MongoDB
 - Format: Markdown, heading rõ ràng, code block có syntax highlight (```typescript), có chú thích tên file (ví dụ: `// users.service.ts`)
 

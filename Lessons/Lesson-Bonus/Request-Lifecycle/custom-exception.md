@@ -224,11 +224,13 @@ import { JwtExceptionFilter } from './common/filters/jwt-exception.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Filter "bắt mọi lỗi" phải khai báo ĐẦU TIÊN: NestJS kiểm tra filter đăng ký sau trước,
+  // nên nếu AllExceptionsFilter đứng cuối, nó sẽ nuốt hết lỗi trước khi filter chuyên biệt kịp xử lý
   app.useGlobalFilters(
+    new AllExceptionsFilter(),
     new HttpExceptionFilter(),
     new DatabaseExceptionFilter(),
     new JwtExceptionFilter(),
-    new AllExceptionsFilter(),
   );
 
   await app.listen(3000);

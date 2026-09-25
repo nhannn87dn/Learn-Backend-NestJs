@@ -1,10 +1,14 @@
-# Lesson 14: Tài liệu hóa API với OpenAPI (Swagger)
+# Bonus 02: Tài liệu hóa API với OpenAPI (Swagger)
 
-## OpenAPI là gì?
-## Swagger là gì?
-## Cài đặt và cấu hình Swagger với NestJS
-## Tạo tài liệu API với Swagger
-  * Sử dụng decorators để mô tả API
-  * Tạo API documentation
-  * Tùy chỉnh Swagger UI
-  
+> Tiên quyết: Lesson 06 (DTO), Lesson 09 (JWT)
+
+* OpenAPI là gì?
+* Swagger là gì? Mối quan hệ giữa OpenAPI và Swagger
+* Cài đặt và cấu hình `@nestjs/swagger`
+* Mô tả API bằng decorators
+  * `@ApiTags`, `@ApiOperation`, `@ApiResponse`
+  * `@ApiProperty` trên DTO
+  * `@ApiBearerAuth` cho route cần JWT
+* Swagger CLI plugin: tự sinh mô tả từ DTO
+* Tùy chỉnh Swagger UI
+* Export OpenAPI spec (JSON) cho frontend/Postman
