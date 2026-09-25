@@ -13,39 +13,49 @@
 
 ---
 
-## Lesson 02: TypeScript và Lập trình OOP
+## Lesson 02: TypeScript cho NestJS
 
-* TypeScript cơ bản
-  * Cài đặt TypeScript
-  * Kiểu dữ liệu trong TypeScript
-  * Interface và Type
-  * Class và Object
-  * Function và Arrow Function
-  * Generics
-  * Enum
-  * Module và Namespace
-  * Decorators
-* TypeScript trong NestJS
-  * OOP là gì?
-  * Lập trình hướng đối tượng trong NestJS
-  * Cấu trúc Class trong typeScript
-    * Constructor
-    * Properties
-    * Methods
-  * Tính kế thừa trong typeScript
-    * Inheritance
-    * Polymorphism
-    * Abstraction
-  * Tính đóng gói trong typeScript
-  * Tính trừu tượng trong typeScript
-  * Tính đa hình trong typeScript
-  * Interface trong typeScript
-  * Access Modifier trong TypeScript
-    * Public
-    * Private
-    * Protected
-  * Static trong TypeScript
-    * Static
+* Cài đặt và cấu hình TypeScript
+  * TypeScript là gì? Vì sao NestJS dùng TypeScript?
+  * Cài đặt `typescript`, chạy code với `tsc` và `tsx`
+  * `tsconfig.json` và chế độ `strict`
+* Kiểu dữ liệu cơ bản
+  * `string`, `number`, `boolean`, `null`, `undefined`
+  * Array và Tuple
+  * `any` vs `unknown` vs `never`
+  * Type inference (suy luận kiểu)
+* Kết hợp kiểu dữ liệu
+  * Union và Literal types
+  * Type narrowing (`typeof`, `in`, `instanceof`)
+  * Type alias vs Interface
+  * Optional (`?`) và `readonly`
+* Function trong TypeScript
+  * Kiểu cho tham số và giá trị trả về
+  * Tham số optional và default
+  * Async function và `Promise<T>`
+* Enum
+  * Enum vs Union literal
+* Generics
+  * Generics là gì? (`Array<T>`, `Promise<T>`)
+  * Viết function và interface generic
+* Utility Types
+  * `Partial`, `Required`, `Pick`, `Omit`, `Record`
+* Module: `import` / `export`
+* Class trong TypeScript (đủ dùng cho NestJS)
+  * Class, Constructor, Properties, Methods
+  * Access Modifier: `public`, `private`, `protected`, `readonly`
+  * Parameter properties: `constructor(private readonly service: Service)`
+  * `implements` interface
+  * `extends` và `super` (kế thừa cơ bản)
+  * `abstract` và `static` (giới thiệu)
+  * Definite assignment (`!`) với `strictPropertyInitialization`
+  * Vì sao NestJS dùng class: interface bị xóa khi compile, class tồn tại lúc runtime
+* Decorators
+  * Decorator là gì?
+  * Class, Method, Property, Parameter decorator
+  * Tự viết một decorator đơn giản
+  * `experimentalDecorators`, `emitDecoratorMetadata` và `reflect-metadata`
+  * Decorator trong NestJS: `@Controller`, `@Injectable`, `@Get`, `@IsString`
 
 ## Lesson 03: Tổng quan về NestJS
 
@@ -116,17 +126,28 @@
 
 * Service và Business Logic
 
+* Providers và Dependency Injection
+
+  * Provider là gì?
+  * `@Injectable()` và DI container
+  * Inject service vào controller qua constructor
+
 * Modules và Mục đích sử dụng
 
   * Module là gì?
   * Root module vs Feature module
   * @Module: imports, controllers, providers, exports
 
+* Xử lý lỗi với Built-in HTTP Exceptions
+
+  * `NotFoundException`, `BadRequestException`, `ConflictException`...
+  * Throw exception từ service
+
 
 ---
 
 
-## Lesson 06: Làm việc với Database (Prisma/TypeORM)
+## Lesson 06: Làm việc với Database (TypeORM)
 
 * Database trong Backend ?
   * Vai trò Database trong Backend
@@ -136,17 +157,16 @@
 * ORM là gì?
   * ORM (Object Relational Mapping) là gì?
   * Lợi ích của ORM
-  * So sánh Prisma và TypeORM
 * Cài đặt và cấu hình Database với NestJS
   * Cài đặt TypeORM
   * Kết nối database
   * Cấu hình .env
-* Tạo Entity/Model với Prisma/TypeORM
+* Tạo Entity với TypeORM
   * Entity trong TypeORM
     * Tables
-    * Colums
+    * Columns
     * Primary Key
-  * Cấu hình tùy chỉnh cho Entity/Model
+  * Cấu hình tùy chỉnh cho Entity
     * Column types
     * Default values
 * Repository Pattern
@@ -154,6 +174,9 @@
   * Data Transfer Object (DTO)
     * DTO là gì?
     * Tại sao cần DTO?
+  * Pipes trong NestJS
+    * Pipe là gì? (transformation vs validation)
+    * Built-in pipes: `ParseIntPipe`, `ParseUUIDPipe`...
   * Validation trong NestJS
     * class-validator
     * class-transformer
@@ -173,6 +196,10 @@
   * Many-to-Many
   * Cascade, eager, lazy
 
+* Migrations
+  * Migrations là gì? Vì sao không dùng `synchronize: true` ở production?
+  * Tạo và chạy Migrations với TypeORM
+
 * Seeding Database với TypeORM
   * Seeding là gì?
   * Tạo và chạy Seeder với TypeORM
@@ -189,14 +216,20 @@
   * Indexes là gì?
   * Tạo Indexes với TypeORM
   * Tối ưu hiệu suất truy vấn với Indexes
-* Migrations
-  * Migrations là gì?
-  * Tạo và chạy Migrations với TypeORM
 
 
 ---
 
-## Lesson 08: Build CRUD complete with ReactJS
+## Lesson 08: Mini Project - Build CRUD complete với ReactJS
+
+> Mini project: vận dụng API đã xây dựng (Lesson 04-07) vào frontend
+
+* Chuẩn hóa response format
+  * Tại sao cần chuẩn hóa response format?
+  * Interceptor là gì?
+  * Success response với Interceptor
+  * Exception Filter là gì?
+  * Error response với Exception Filter
 
 * Init dự án ReactJS
 
@@ -209,11 +242,6 @@
   * Tạo form chỉnh sửa dữ liệu
   * Xóa dữ liệu
   * Tích hợp Alert, Notification
-
-* Chuẩn hóa response format
-  * Tại sao cần chuẩn hóa response format?
-  * Success response
-  * Error response
 
 ---
 
@@ -229,12 +257,14 @@
   * Tạo User và Hash Password
   * Login and tạo Tokens
 * Protect API với Guard và PassportJS JWT
+  * Guard là gì?
   * AuthGuard
   * Protect routes
+  * Lấy user hiện tại với custom decorator `@CurrentUser()`
 * Refresh Token
   * Refresh Token Flow
   * Token rotation
-* Advanced Authentication`
+* Advanced Authentication
   * Social Authentication (Google, Facebook, GitHub)
   * Two Factor Authentication (2FA)
 
@@ -254,7 +284,8 @@
   * Gán Permission cho Role
   * Kiểm tra quyền truy cập với Guards
 * Authorization với Guards
-  * Tạo AuthGuard
+  * Custom decorator `@Roles()` với `SetMetadata` và `Reflector`
+  * Tạo RolesGuard
   * Sử dụng Guards trong Controllers
 * Advanced Authorization
   * Attribute-based access control (ABAC)
@@ -262,7 +293,9 @@
 
 ---
 
-## Lesson 11: Implement Dashboard with ReactJS
+## Lesson 11: Mini Project - Implement Dashboard với ReactJS
+
+> Mini project: vận dụng Authentication & Authorization (Lesson 09-10) vào frontend
 
 * Init dự án ReactJS
 * Kết nối ReactJS với API NestJS
@@ -379,6 +412,10 @@
 ## Lesson 16: Deployment & Security
 
 * Build project
+* Middleware trong NestJS
+  * Middleware là gì?
+  * Functional middleware vs Class middleware
+  * Tổng hợp Request Lifecycle: Middleware → Guard → Interceptor → Pipe → Handler → Exception Filter
 * API Security
   * CORS
   * Helmet

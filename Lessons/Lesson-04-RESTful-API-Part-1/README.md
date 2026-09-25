@@ -3,9 +3,10 @@
 > Mục tiêu bài học:
 >
 > - Hiểu khái niệm RESTful API và các nguyên tắc thiết kế
-> - Tạo một RESTful API đơn giản với NestJS
-> - Sử dụng Modules, Controllers, Services trong NestJS
+> - Tạo Controller xử lý routing, request, response trong NestJS
 > - Quản lý phiên bản API (API Versioning)
+>
+> (Module và Service — phần còn lại của kiến trúc NestJS — được học ở Lesson 05)
 
 ## 1. Giới thiệu về RESTful API
 
@@ -67,7 +68,9 @@ DELETE /api/products/10
 Ví dụ: Endpoint `/api/products` đại diện cho resource "products". Mỗi HTTP method sẽ thực hiện một hành động khác nhau trên resource đó.
 
 
-### 1.4 Nguyên tắc thiết kế RESTful API
+## 2. REST API Design Principles
+
+### 2.1 Nguyên tắc thiết kế RESTful API
 
 #### Nguyên tắc 1: Client-Server Architecture
 
@@ -138,7 +141,7 @@ Client ←→ API Gateway ←→ Load Balancer ←→ Server
 
 
 
-### 1.5 HTTP Methods
+### 2.2 HTTP Methods
 
 | Method | Mục đích | Ví dụ |
 |--------|----------|-------|
@@ -184,7 +187,7 @@ DELETE /api/products/5
 ```
 
 
-### 1.6 Status Codes phổ biến
+### 2.3 Status Codes phổ biến
 
 #### 2xx - Success (Thành công)
 
@@ -232,7 +235,7 @@ Response: 400 Bad Request
 }
 ```
 
-### 1.7 Resource-based URL
+### 2.4 Resource-based URL
 
 URL nên đại diện cho **danh từ (resource)**, không phải động từ (action).
 

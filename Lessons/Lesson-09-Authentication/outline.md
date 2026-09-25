@@ -1,4 +1,4 @@
-# Lesson 08: Authentication (Jwt, 2FA)
+# Lesson 09: Authentication (Jwt, 2FA)
 
 ## Mục tiêu bài học
 
@@ -49,8 +49,10 @@
 
 ## Protect API với Guards
 
+- Guard là gì?
 - AuthGuard
 - Protect routes with AuthGuard
+- Lấy user hiện tại với custom decorator `@CurrentUser()`
 
 ## Refresh Token
 

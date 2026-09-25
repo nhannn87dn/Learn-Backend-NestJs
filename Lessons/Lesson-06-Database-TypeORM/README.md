@@ -12,6 +12,10 @@
 - Áp dụng Data Mapper Pattern
 - Cấu hình multi database connection
 
+## Ôn tập nhanh buổi trước
+
+Lesson 05 đã học Provider/Dependency Injection, Module, và cách ném lỗi bằng Built-in HTTP Exceptions (`NotFoundException`...). Hôm nay, `BooksService` sẽ trở thành một Provider thật sự có kết nối database — thay vì lưu dữ liệu trong mảng ở bộ nhớ (in-memory array), và các lỗi "không tìm thấy" sẽ được ném ra khi Repository trả về `null`.
+
 ---
 
 ## 1. Database trong Backend Application
@@ -241,80 +245,34 @@ export class Book {
 }
 ```
 
-### 3.2. Tổng quan về Prisma
+### 3.2. Sơ lược về Prisma — để biết TypeORM khác gì
 
-**Prisma** là một modern ORM với approach khác:
-
-- Schema được định nghĩa trong file `.prisma`
-- Type-safe client được generate tự động
-- Migration system đơn giản
-- Prisma Studio (GUI tool)
-
-> Trang chủ Prisma ORM: [https://www.prisma.io/orm](https://www.prisma.io/orm)
-
-**Ví dụ Schema với Prisma:**
+**Prisma** là một ORM hiện đại khác, cách tiếp cận khác hẳn TypeORM: thay vì dùng decorator ngay trong code TS, Prisma định nghĩa model trong một file schema riêng (`schema.prisma`), rồi dùng CLI **generate** ra một client type-safe để import vào code.
 
 ```prisma
+// schema.prisma — không phải TypeScript, là ngôn ngữ khai báo riêng của Prisma
 model Book {
   id          Int      @id @default(autoincrement())
   title       String
-  description String
   pages       Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }
 ```
 
-### 3.3. So sánh TypeORM và Prisma
+**So sánh nhanh với TypeORM:**
 
 | Tiêu chí | TypeORM | Prisma |
 |----------|---------|--------|
-| **Schema Definition** | Decorators trong code | Schema file (.prisma) |
-| **Type Generation** | Manual | Auto-generated |
-| **Learning Curve** | Trung bình | Dễ hơn |
-| **Migration** | Mạnh, linh hoạt | Đơn giản hơn |
-| **Query Builder** | Có | Không (dùng API) |
-| **Raw SQL** | Dễ dàng | Khó hơn |
-| **Relations** | Flexible | Declarative, dễ hiểu |
-| **Performance** | Tốt | Tốt hơn một chút |
-| **Community** | Lớn hơn | Đang phát triển nhanh |
-| **NestJS Integration** | Native support | Cần setup thêm |
+| Định nghĩa model | Decorator ngay trong class TS | File schema riêng, phải generate client |
+| Tích hợp NestJS | Có module chính thức `@nestjs/typeorm` | Cần tự setup, không có module chính thức |
+| Query Builder / Raw SQL | Hỗ trợ đầy đủ, linh hoạt | Hạn chế hơn, ưu tiên dùng API sinh sẵn |
 
-**TypeORM:**
+### 3.3. Lý do chọn TypeORM cho khóa học này
 
-```typescript
-// Query với TypeORM
-const books = await bookRepository
-  .createQueryBuilder('book')
-  .where('book.pages > :pages', { pages: 300 })
-  .orderBy('book.title', 'ASC')
-  .getMany();
-```
+1. **Native NestJS Integration**: có module chính thức `@nestjs/typeorm`, tài liệu NestJS dùng TypeORM làm ví dụ mặc định.
+2. **Decorator style nhất quán**: entity khai báo bằng decorator (`@Entity`, `@Column`) giống hệt cách NestJS khai báo Controller/Service, học viên không phải đổi tư duy khi chuyển từ code sang schema.
+3. **Linh hoạt khi cần Raw SQL/Query Builder** cho các trường hợp truy vấn phức tạp (sẽ học ở Lesson 07).
 
-**Prisma:**
-
-```typescript
-// Query với Prisma
-const books = await prisma.book.findMany({
-  where: {
-    pages: { gt: 300 }
-  },
-  orderBy: {
-    title: 'asc'
-  }
-});
-```
-
-### 3.4. Lý do chọn TypeORM trong bài học này
-
-1. **Native NestJS Integration**: TypeORM có module chính thức từ NestJS
-2. **Decorators**: Nhất quán với NestJS style
-3. **Flexible**: Hỗ trợ cả Active Record và Data Mapper patterns
-4. **Raw SQL**: Dễ dàng khi cần performance cao
-5. **Community**: Tài liệu và community support phong phú
-6. **Learning**: Học TypeORM giúp hiểu sâu về ORM patterns
-
-> **Lưu ý**: Cả TypeORM và Prisma đều là lựa chọn tốt. Chọn tool nào phụ thuộc vào requirements của dự án.
+> Prisma không phải lựa chọn tệ — chỉ là khóa học chọn một công cụ duy nhất để đi sâu, và TypeORM phù hợp hơn với cách NestJS tổ chức code bằng class/decorator.
 
 ---
 
@@ -856,7 +814,44 @@ create(@Body() createBookDto: CreateBookDto) {
 }
 ```
 
-### 6.3. Validation với class-validator và class-transformer
+### 6.3. Pipes trong NestJS
+
+#### Pipe là gì?
+
+**Pipe** là một class implement interface `PipeTransform`, đứng giữa lúc request đến và lúc handler (method trong controller) thực sự chạy. Pipe có 2 nhiệm vụ chính:
+
+- **Transformation**: biến đổi dữ liệu đầu vào từ dạng này sang dạng khác — ví dụ chuỗi `"5"` trên URL thành số `5`.
+- **Validation**: kiểm tra dữ liệu đầu vào có hợp lệ không, nếu không hợp lệ thì tự động ném lỗi (thường là `400 Bad Request`) trước khi handler kịp chạy.
+
+```typescript
+@Get(':id')
+findOne(@Param('id') id: string) {
+  // Nếu không dùng Pipe: id luôn là string, phải tự parseInt() thủ công
+}
+```
+
+#### Built-in Pipes
+
+NestJS có sẵn một số Pipe dùng ngay, phổ biến nhất là `ParseIntPipe` và `ParseUUIDPipe`:
+
+```typescript
+import { ParseIntPipe, ParseUUIDPipe } from '@nestjs/common';
+
+@Get(':id')
+findOne(@Param('id', ParseIntPipe) id: number) {
+  // NestJS tự parse "id" từ string sang number TRƯỚC khi vào hàm
+  // Nếu client gửi "abc" (không parse được thành số), Pipe tự trả lỗi 400, không cần code thủ công
+}
+
+@Get(':uuid')
+findByUuid(@Param('uuid', ParseUUIDPipe) uuid: string) {
+  // Kiểm tra uuid có đúng định dạng UUID không, sai định dạng thì báo lỗi 400 ngay
+}
+```
+
+> **Vì sao học Pipe trước class-validator?** `ParseIntPipe`/`ParseUUIDPipe` là ví dụ về Pipe **built-in** đơn giản, chỉ xử lý 1 tham số. `ValidationPipe` (mục 6.4) cũng là một Pipe — nhưng mạnh hơn nhiều: nó đọc toàn bộ decorator validation (`@IsString()`, `@IsInt()`...) khai báo trên DTO để tự động validate cả object phức tạp. Hiểu Pipe là gì trước sẽ giúp thấy `ValidationPipe` không phải cơ chế đặc biệt riêng, mà chỉ là một Pipe mạnh hơn.
+
+### 6.4. Validation với class-validator và class-transformer
 
 
 **Bước 1: Cài đặt thư viện:**
@@ -1197,7 +1192,7 @@ export class BooksController {
 Xem tại file REST Client [test-validation-book.http](./test-validation-book.http)
 
 
-### 6.4. Sự khác biệt giữa DTO Response và Entity
+### 6.5. Sự khác biệt giữa DTO Response và Entity
 
 **Entity:**
 
@@ -1267,7 +1262,7 @@ export class BookResponseDto {
 
 
 
-### 6.5. Tại sao không nên trả về Entity trực tiếp từ Controller
+### 6.6. Tại sao không nên trả về Entity trực tiếp từ Controller
 
 **1. Security - Lộ sensitive data:**
 
@@ -2364,7 +2359,7 @@ export class BooksController {
 }
 ```
 
-#### 7.3.4. Ví dụ minh họa sử dụng Data Mapper Pattern
+#### 8.3.4. Ví dụ minh họa sử dụng Data Mapper Pattern
 
 **Advanced Mapper với Relations:**
 
@@ -2631,4 +2626,39 @@ async create(@Body() data: any) {
 }
 ```
 
+---
+
+## Common mistakes — lỗi người mới hay gặp
+
+1. **Bật `synchronize: true` rồi quên tắt khi lên production**: TypeORM sẽ tự động alter table theo entity mỗi lần khởi động app — trên production điều này có thể xóa/đổi cột và **mất dữ liệu thật**. Luôn set `synchronize: false` ở production, dùng Migrations (Lesson 07) thay thế.
+2. **Trả thẳng Entity ra khỏi Controller**: dẫn tới lộ field nhạy cảm (`password`, `internalNote`...) hoặc dữ liệu thừa không cần thiết cho client — luôn map qua DTO Response trước khi trả về (mục 6.5-6.6).
+3. **Nhận `@Body() body: any` thay vì dùng DTO**: mất toàn bộ validation và type safety, dữ liệu sai định dạng vẫn lọt được vào service, có thể gây lỗi hoặc crash khi ghi xuống database.
+4. **Quên bật Global `ValidationPipe`**: khai báo đầy đủ decorator (`@IsString()`, `@IsInt()`...) trên DTO nhưng không đăng ký `ValidationPipe` trong `main.ts` thì các decorator này hoàn toàn không có tác dụng — dữ liệu sai vẫn đi qua bình thường.
+5. **Nhầm lẫn `ParseIntPipe` (transform tham số route) với `ValidationPipe` (validate cả object DTO)**: hai Pipe giải quyết hai bài toán khác nhau — một cái xử lý từng tham số đơn lẻ trên URL, một cái xử lý cả object body dựa trên decorator validation.
+
+## Bài tập thực hành trên lớp
+
+**Đề bài**: Từ `BooksService` in-memory đã viết ở Lesson 05, chuyển sang dùng TypeORM với PostgreSQL:
+1. Tạo `Book` entity với các cột `id`, `title`, `description`, `pages`, `createdAt`.
+2. Cấu hình `TypeOrmModule.forRootAsync()` đọc config từ `.env` qua `ConfigService`.
+3. Viết `CreateBookDto` với validation (`@IsString()`, `@IsInt()`, `@Min()`...) và `UpdateBookDto` kế thừa bằng `PartialType`.
+4. Áp dụng `ParseIntPipe` cho tham số `:id`, và Global `ValidationPipe` cho toàn bộ ứng dụng.
+5. Viết `BookResponseDto` và map Entity sang DTO trước khi trả về ở tất cả các endpoint.
+
+**Gợi ý hướng giải**: làm theo đúng thứ tự 4 bước trong mục "4.3. Cấu hình kết nối" trước, chạy thử kết nối database thành công rồi mới viết Entity và CRUD.
+
+## Homework
+
+- [ ] Thêm 2 cột mới vào `Book` entity (ví dụ `author`, `isPublished: boolean`), cập nhật DTO tương ứng.
+- [ ] Viết validation tùy chỉnh: `pages` phải lớn hơn 0 và nhỏ hơn 10000.
+- [ ] Thêm endpoint `GET /books?minPages=100` lọc sách theo số trang tối thiểu, dùng `ParseIntPipe` cho query param.
+- [ ] (Nâng cao) Tự tạo một `BookMapper` riêng (theo Data Mapper Pattern ở mục 8.3) thay vì map trực tiếp trong controller.
+
+## Câu hỏi ôn tập
+
+1. Vì sao không nên dùng `synchronize: true` ở môi trường production?
+2. DTO khác Entity ở điểm nào? Vì sao cần tách riêng DTO Request và DTO Response?
+3. `Pipe` trong NestJS có 2 nhiệm vụ chính là gì? Cho ví dụ mỗi loại.
+4. `ParseIntPipe` và `ValidationPipe` khác nhau như thế nào?
+5. Repository Pattern giúp ích gì cho việc test code so với gọi thẳng TypeORM trong Controller?
 

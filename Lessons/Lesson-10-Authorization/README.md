@@ -398,9 +398,24 @@ async refreshToken(refreshToken: string) {
 
 ## 4. Protecting Routes với Authorization Guards
 
-### Tạo AuthGuard
+### `Reflector` — đọc lại metadata do `@Roles()`/`SetMetadata` gắn vào
 
-Guard trong NestJS implement interface `CanActivate`. Guard trả về `true` để cho phép, `false` hoặc throw exception để từ chối.
+Ở mục 3, `@Roles(Role.ADMIN)` chỉ **gắn metadata** vào route (nhờ `SetMetadata`) — bản thân decorator đó không kiểm tra gì cả, chỉ giống như dán một cái nhãn "route này cần role ADMIN" lên route. Cần một cơ chế khác **đọc lại** cái nhãn đó lúc runtime để thực sự so sánh với role của user — đó là việc của `Reflector`.
+
+`Reflector` là một service có sẵn của NestJS (`@nestjs/core`), cho phép Guard **đọc lại metadata** đã được `SetMetadata` gắn vào route trước đó:
+
+```typescript
+const requiredRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
+  context.getHandler(), // metadata gắn trên method (ví dụ @Roles() đặt trên 1 route cụ thể)
+  context.getClass(),   // metadata gắn trên cả class controller (áp dụng cho mọi route trong đó)
+]);
+```
+
+`getAllAndOverride` tìm metadata theo đúng khóa `ROLES_KEY` ở cả 2 cấp (method rồi tới class), và **ưu tiên giá trị ở method** nếu có khai báo ở cả hai — cho phép override giá trị `@Roles()` chung của cả controller bằng giá trị riêng cho từng route.
+
+### Tạo RolesGuard
+
+Guard trong NestJS implement interface `CanActivate`. Guard trả về `true` để cho phép, `false` hoặc throw exception để từ chối. `RolesGuard` bên dưới kết hợp `Reflector` (đọc metadata) với thông tin `user` đã được `JwtAuthGuard` gắn vào `request` (Lesson 09) để đưa ra quyết định cho phép hay từ chối.
 
 ```typescript
 //src/modules/auth/guards/roles.guard.ts

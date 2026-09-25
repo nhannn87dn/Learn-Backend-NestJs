@@ -78,10 +78,112 @@ npm run start:prod
 ```
 
 ---
+## 2. Middleware trong NestJS
 
-## 2. API Security
+### 2.1 Middleware là gì?
 
-### 2.1 CORS (Cross-Origin Resource Sharing)
+**Middleware** là một hàm (hoặc class) chạy **trước cả Guard** — ngay khi request vừa đến server, trước khi NestJS xác định sẽ route request đó tới controller nào. Middleware có thể đọc/sửa `request`, `response`, hoặc dừng request lại sớm bằng cách không gọi `next()`.
+
+```typescript
+// Middleware dạng function đơn giản: log mọi request đi vào
+export function loggerMiddleware(req: Request, res: Response, next: NextFunction) {
+  console.log(`[${req.method}] ${req.originalUrl}`);
+  next(); // BẮT BUỘC gọi next() để request tiếp tục, nếu không request sẽ "treo"
+}
+```
+
+Middleware thường dùng cho các tác vụ áp dụng cho **toàn bộ request**, không liên quan đến logic nghiệp vụ cụ thể: logging, đo thời gian xử lý, nén response (compression), parse cookie...
+
+### 2.2 Functional middleware vs Class middleware
+
+**Functional middleware** — chỉ là một hàm thuần, phù hợp cho middleware đơn giản không cần dependency injection:
+
+```typescript
+export function requestIdMiddleware(req: Request, res: Response, next: NextFunction) {
+  req.headers['x-request-id'] = req.headers['x-request-id'] ?? crypto.randomUUID();
+  next();
+}
+```
+
+**Class middleware** — implement interface `NestMiddleware`, dùng khi middleware cần inject dependency (ví dụ một service để ghi log vào database):
+
+```typescript
+@Injectable()
+export class LoggerMiddleware implements NestMiddleware {
+  constructor(private readonly logService: LogService) {} // có thể inject như mọi Provider khác
+
+  use(req: Request, res: Response, next: NextFunction) {
+    this.logService.record(`${req.method} ${req.originalUrl}`);
+    next();
+  }
+}
+```
+
+Đăng ký middleware trong `AppModule` (chỉ Class middleware mới đăng ký theo cách này; functional middleware đăng ký trực tiếp qua `app.use()` trong `main.ts`):
+
+```typescript
+// src/app.module.ts
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(LoggerMiddleware)
+      .forRoutes('*'); // áp dụng cho mọi route, hoặc chỉ định cụ thể ví dụ 'users'
+  }
+}
+```
+
+### 2.3 Tổng hợp Request Lifecycle
+
+Qua các bài học trước, chúng ta đã học riêng lẻ từng cơ chế can thiệp vào vòng đời một request. Giờ là lúc ghép chúng lại thành một bức tranh hoàn chỉnh — đúng theo thứ tự một request thực sự đi qua trong NestJS:
+
+```
+Request
+  │
+  ▼
+Middleware        (Lesson 16) — log, đo thời gian, gắn request-id...
+  │
+  ▼
+Guard             (Lesson 09-10) — CanActivate: có được đi tiếp không? (đăng nhập? đủ quyền?)
+  │
+  ▼
+Interceptor (trước) (Lesson 08) — có thể xử lý trước khi vào handler
+  │
+  ▼
+Pipe              (Lesson 06) — transform & validate dữ liệu đầu vào (ParseIntPipe, ValidationPipe)
+  │
+  ▼
+Handler           — code trong Controller/Service thực sự chạy
+  │
+  ▼
+Interceptor (sau)  (Lesson 08) — transform response trước khi trả về (TransformInterceptor)
+  │
+  ▼
+Response
+```
+
+Và nếu **bất kỳ bước nào ở trên ném ra exception** (Guard từ chối, Pipe validate lỗi, Handler throw `NotFoundException`...), luồng xử lý bình thường bị ngắt và chuyển ngay sang:
+
+```
+Exception Filter   (Lesson 08) — bắt lỗi, format lại thành response lỗi nhất quán
+  │
+  ▼
+Response (lỗi)
+```
+
+| Cơ chế | Chạy khi nào | Trả lời câu hỏi | Học ở |
+|---|---|---|---|
+| Middleware | Sớm nhất, trước khi biết route nào xử lý | "Cần làm gì với MỌI request?" | Lesson 16 |
+| Guard | Trước khi vào Handler | "Request này có được phép đi tiếp không?" | Lesson 09-10 |
+| Pipe | Ngay trước Handler | "Dữ liệu đầu vào có hợp lệ/đúng kiểu không?" | Lesson 06 |
+| Interceptor | Bao quanh Handler | "Cần biến đổi gì trước/sau khi Handler chạy?" | Lesson 08 |
+| Exception Filter | Khi có lỗi ở bất kỳ bước nào | "Lỗi này nên trả về client dưới hình dạng nào?" | Lesson 08 |
+
+> **Vì sao cần tổng hợp lại?** Trong suốt khóa học, mỗi cơ chế được dạy ở một bài riêng, đúng lúc cần dùng đến. Nhưng để debug được một request "đi lạc" ở đâu trong ứng dụng thực tế, bạn cần nhìn thấy toàn bộ bức tranh — biết chính xác Middleware chạy trước Guard, Guard chạy trước Pipe, và Exception Filter luôn là điểm dừng cuối cùng khi có lỗi.
+
+
+## 3. API Security
+
+### 3.1 CORS (Cross-Origin Resource Sharing)
 
 CORS là cơ chế bảo mật của trình duyệt, ngăn chặn các request từ domain khác truy cập vào API của bạn nếu chưa được cho phép.
 
@@ -128,7 +230,7 @@ app.enableCors({
 
 ---
 
-### 2.2 Helmet
+### 3.2 Helmet
 
 **Helmet** bảo vệ ứng dụng bằng cách tự động thiết lập các HTTP security headers, ngăn chặn các lỗ hổng phổ biến như XSS, clickjacking, MIME sniffing.
 
@@ -184,7 +286,7 @@ Các header Helmet thiết lập mặc định:
 
 ---
 
-### 2.3 Rate Limiting
+### 3.3 Rate Limiting
 
 **Rate Limiting** giới hạn số lượng request trong một khoảng thời gian, bảo vệ API khỏi DDoS, brute-force và lạm dụng.
 
@@ -256,7 +358,7 @@ Retry-After: 60
 
 ---
 
-### 2.4 CSRF (Cross-Site Request Forgery)
+### 3.4 CSRF (Cross-Site Request Forgery)
 
 **CSRF** là kiểu tấn công khiến người dùng đã đăng nhập vô tình gửi request độc hại đến server.
 
@@ -299,7 +401,7 @@ Client cần gửi token này trong header `X-CSRF-Token` với mỗi request PO
 
 ---
 
-### 2.5 API Key Authentication
+### 3.5 API Key Authentication
 
 **API Key** là cách xác thực đơn giản, thường dùng cho server-to-server communication hoặc public API có kiểm soát truy cập.
 
@@ -366,7 +468,7 @@ export class ApiKeyGuard implements CanActivate {
 
 ---
 
-## 3. Health Check API
+## 4. Health Check API
 
 **Health Check** là endpoint cho phép monitoring tools hoặc load balancer kiểm tra trạng thái hoạt động của ứng dụng.
 
@@ -458,7 +560,7 @@ Khi có lỗi, server trả về HTTP `503 Service Unavailable`.
 
 ---
 
-## 4. Deploy với PM2
+## 5. Deploy với PM2
 
 **PM2** là process manager cho Node.js, giúp giữ ứng dụng luôn chạy, tự động restart khi crash và quản lý logs hiệu quả.
 
@@ -526,7 +628,7 @@ pm2 save
 
 ---
 
-## 5. Dockerize NestJS
+## 6. Dockerize NestJS
 
 **Docker** đóng gói ứng dụng cùng toàn bộ dependencies vào một container, đảm bảo môi trường nhất quán từ dev đến production.
 
@@ -640,9 +742,9 @@ docker-compose exec app sh     # Truy cập vào container
 
 ---
 
-## 6. Deploy lên VPS / Cloud
+## 7. Deploy lên VPS / Cloud
 
-### 6.1 Deploy lên VPS (Ubuntu) với PM2 + Nginx
+### 7.1 Deploy lên VPS (Ubuntu) với PM2 + Nginx
 
 #### Bước 1: Chuẩn bị server
 
@@ -717,7 +819,7 @@ sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
 
 ---
 
-### 6.2 Deploy lên VPS dùng Docker Compose
+### 7.2 Deploy lên VPS dùng Docker Compose
 
 ```bash
 # Cài Docker trên server
@@ -734,7 +836,7 @@ docker-compose up -d
 
 ---
 
-### 6.3 CI/CD tự động với GitHub Actions
+### 7.3 CI/CD tự động với GitHub Actions
 
 ```yaml
 # .github/workflows/deploy.yml
@@ -766,7 +868,7 @@ jobs:
 
 ---
 
-### 6.4 Quản lý biến môi trường
+### 7.4 Quản lý biến môi trường
 
 Không bao giờ commit file `.env` lên Git. Luôn dùng `.env.example` làm template:
 

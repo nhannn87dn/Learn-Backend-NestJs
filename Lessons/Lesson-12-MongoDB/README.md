@@ -79,6 +79,24 @@ NoSQL dùng denormalization — nhúng dữ liệu liên quan vào cùng một d
   ]
 }
 ```
+
+### CAP Theorem
+
+Khi một hệ thống database chạy **phân tán** trên nhiều node (đúng như cách NoSQL scale ngang ở trên), **CAP Theorem** chỉ ra rằng bạn chỉ có thể đảm bảo **đồng thời tối đa 2 trong 3** tính chất sau:
+
+- **C — Consistency (Nhất quán)**: mọi node luôn trả về **dữ liệu mới nhất giống nhau** tại cùng một thời điểm.
+- **A — Availability (Sẵn sàng)**: mọi request luôn nhận được phản hồi (không bị treo/từ chối), kể cả khi một vài node đang gặp sự cố.
+- **P — Partition Tolerance (Chịu được phân vùng mạng)**: hệ thống vẫn hoạt động được khi mất kết nối mạng giữa các node.
+
+Trong thực tế, **Partition Tolerance gần như bắt buộc phải có** (mạng lúc nào cũng có rủi ro gián đoạn), nên bài toán thực sự chỉ còn là chọn giữa **Consistency** và **Availability**:
+
+| Ưu tiên | Ví dụ database | Đánh đổi |
+|---|---|---|
+| **CP** (Consistency + Partition Tolerance) | MongoDB (cấu hình mặc định) | Khi mất kết nối giữa các node, hệ thống có thể từ chối trả lời thay vì trả dữ liệu cũ/sai |
+| **AP** (Availability + Partition Tolerance) | Cassandra, DynamoDB | Luôn trả lời request, nhưng dữ liệu trả về có thể chưa phải bản mới nhất (eventual consistency) |
+
+> **Vì sao học phần này trước khi vào MongoDB?** MongoDB mặc định ưu tiên **Consistency** (đọc luôn được dữ liệu mới nhất từ node chính - primary), khác với nhiều NoSQL database khác ưu tiên Availability. Hiểu CAP Theorem giúp bạn không ngạc nhiên khi thấy MongoDB có khái niệm "primary/secondary" và độ trễ đồng bộ (replication lag) — đó là hệ quả trực tiếp của việc chọn ưu tiên Consistency.
+
 ---
 
 ## 2. Các loại cơ sở dữ liệu NoSQL

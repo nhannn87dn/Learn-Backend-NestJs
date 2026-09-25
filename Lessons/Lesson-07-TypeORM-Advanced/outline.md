@@ -1,4 +1,4 @@
-# Lesson 06 - TypeORM Advanced
+# Lesson 07 - TypeORM Advanced
 
 ## 1. Quan hệ dữ liệu
 
@@ -12,7 +12,17 @@
 * onDelete, onUpdate behaviors
 * Circular Dependencies
 
-## 2. Truy vấn nâng cao
+## 2. Migrations
+
+* Migrations là gì? Vì sao không dùng `synchronize: true` ở production?
+* Tạo và chạy Migrations với TypeORM
+
+## 3. Seeding Database
+
+* Seeding là gì?
+* Tạo và chạy Seeder với TypeORM
+
+## 4. Truy vấn nâng cao
 
 * FindOptions và Where Operators
 * Relations (Eager/Lazy, Select fields)
@@ -23,7 +33,7 @@
 * GROUP BY và HAVING
 * Subqueries
 
-## 3. Query Builder
+## 5. Query Builder
 
 * Query Builder là gì?
 * Khi nào dùng Query Builder
@@ -34,7 +44,7 @@
 * Conditional queries
 * Query caching
 
-## 4. Transactions
+## 6. Transactions
 
 * Transaction là gì? ACID
 * QueryRunner approach
@@ -43,21 +53,21 @@
 * Error handling
 * Best practices
 
-## 5. Raw Query
+## 7. Raw Query
 
 * Khi nào cần Raw Query
 * Cách sử dụng an toàn
 * Parameter binding
 * Security concerns
 
-## 6. Soft Delete & Auditing
+## 8. Soft Delete & Auditing
 
 * Soft Delete implementation
 * Restore records
 * Auditing columns
 * Version control
 
-## 7. Indexes & Performance
+## 9. Indexes & Performance
 
 * Types of Indexes
 * Tạo Indexes
@@ -66,12 +76,12 @@
 * Query optimization
 * Performance monitoring
 
-## 8. SQL Stored Procedures
+## 10. SQL Stored Procedures
 
 * Khi nào dùng Stored Procedures
 * Cách gọi từ TypeORM
 
-## 9. Advanced Patterns & Best Practices
+## 11. Advanced Patterns & Best Practices
 
 * Custom Repositories
 * Specification Pattern

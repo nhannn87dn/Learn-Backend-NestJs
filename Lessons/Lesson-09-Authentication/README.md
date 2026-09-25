@@ -574,6 +574,26 @@ Bước 6: Test API đăng nhập
 
 ## 4. Protect API với Guards và  PassportJS JWT
 
+### 4.0 Guard là gì?
+
+**Guard** là một class implement interface `CanActivate`, chạy **trước khi** request tới được handler (method trong controller). Guard trả lời đúng một câu hỏi: **request này có được phép đi tiếp hay không?** — trả về `true` thì request tiếp tục, trả về `false` (hoặc ném exception) thì NestJS chặn lại ngay, trả về lỗi `403 Forbidden` cho client.
+
+```typescript
+export interface CanActivate {
+  canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean>;
+}
+```
+
+Đây chính xác là công cụ dùng để trả lời câu hỏi "người dùng này đã đăng nhập chưa?" (Authentication) — và ở Lesson 10 sẽ dùng lại đúng cơ chế này để trả lời "người dùng này có quyền thực hiện hành động này không?" (Authorization). `JwtAuthGuard` bên dưới là một Guard cụ thể: nó đọc token JWT trong header `Authorization`, xác thực token, nếu hợp lệ thì cho request đi tiếp (đồng thời gắn thông tin user vào `request.user` để controller dùng lại).
+
+```typescript
+@UseGuards(JwtAuthGuard) // Guard này sẽ chạy TRƯỚC khi vào handler getProfile()
+@Get('profile')
+getProfile(@Request() req) {
+  return req.user;
+}
+```
+
 ### 4.1 JWT Authentication Flow với Guards
 
 ```
@@ -688,6 +708,34 @@ export class AuthController {
     }
 }
 ```
+
+### 4.2b Lấy user hiện tại với custom decorator `@CurrentUser()`
+
+Viết `@Request() req` rồi lấy `req.user` ở mọi controller vừa dài dòng, vừa yêu cầu người đọc phải biết `req.user` đến từ đâu. NestJS cho phép tự viết **param decorator** để làm gọn việc này:
+
+```typescript
+// src/modules/auth/decorators/current-user.decorator.ts
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+
+export const CurrentUser = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.user; // chính là user mà JwtStrategy.validate() đã gắn vào request
+  },
+);
+```
+
+Dùng lại ví dụ trên, chỉ cần thay `@Request() req` bằng `@CurrentUser()`:
+
+```typescript
+@UseGuards(JwtAuthGuard)
+@Get('profile')
+getProfile(@CurrentUser() user: { userId: number; email: string; role: string }) {
+  return user; // ngắn gọn, và TypeScript biết ngay kiểu dữ liệu của user
+}
+```
+
+> **Vì sao nên dùng decorator riêng thay vì `@Request() req`?** Controller không cần biết gì về `Request`/`Response` của Express — chỉ cần khai báo "tôi cần user hiện tại", tách biệt rõ ràng giữa business logic và chi tiết kỹ thuật HTTP. Đây cũng là mẫu decorator y hệt cách `@Body()`, `@Param()` hoạt động bên trong NestJS.
 
 Bước 6: Global Guard
 

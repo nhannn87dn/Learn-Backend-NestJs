@@ -2,14 +2,14 @@
 
 ## Mục Lục
 1. [Quan hệ dữ liệu](#1-quan-hệ-dữ-liệu)
-2. [Truy vấn nâng cao](#2-truy-vấn-nâng-cao)
-3. [Query Builder](#3-query-builder)
-4. [Transactions](#4-transactions)
-5. [Raw Query](#5-raw-query)
-6. [Soft Delete & Auditing](#6-soft-delete--auditing)
-7. [Indexes & Performance](#7-indexes--performance)
-8. [SQL Stored Procedures](#8-sql-stored-procedures)
-9. [Advanced Patterns & Best Practices](#9-advanced-patterns--best-practices)
+2. [Migrations](#2-migrations)
+3. [Seeding Database với TypeORM](#3-seeding-database-với-typeorm)
+4. [Truy vấn nâng cao](#4-truy-vấn-nâng-cao)
+5. [Query Builder](#5-query-builder)
+6. [Transactions](#6-transactions)
+7. [Raw Query](#7-raw-query)
+8. [Soft Delete & Auditing](#8-soft-delete--auditing)
+9. [Indexes & Performance](#9-indexes--performance)
 
 ---
 
@@ -777,9 +777,595 @@ export class Post {
 ---
 
 
-## 2. Truy vấn nâng cao
+## 2. Migrations
 
-### 2.1. FindOptions và Where Operators
+### 2.1. Migration là gì? Tại sao cần?
+
+**Khái niệm:** Migration là một cách để quản lý và version hóa schema database. Nó cho phép bạn tạo, cập nhật, hoặc xóa bảng, cột, indexes,... một cách có kiểm soát.  Thay vì để TypeORM tự `synchronize`, bạn viết từng bước thay đổi rõ ràng, có thể rollback, và có thể tái tạo ở bất kỳ môi trường nào.
+
+**Tại sao cần Migration:**
+
+- Quản lý schema changes theo version
+- Dễ dàng deploy schema changes lên production
+- Rollback khi có lỗi
+- Đồng bộ schema giữa các môi trường (dev, staging, prod)
+- Tích hợp với CI/CD pipelines
+
+### 2.2. Cấu hình sử dụng Migration
+
+**Bước 1: Cấu hình AppModule**
+
+```typescript
+TypeOrmModule.forRoot({
+  // ...
+  synchronize: false, // KHÔNG BAO GIỜ dùng synchronize: true ở production
+  migrations: [__dirname + '/migrations/*.ts'], // Đường dẫn đến migration files
+  migrationsRun: false, // Tự động chạy migration khi app start (optional)
+});
+```
+
+**Bước 2: Tạo `dataSource.ts` bắt buộc để chạy CLI**
+
+TypeORM CLI cần một file DataSource riêng, không phụ thuộc vào NestJS container
+
+```typescript
+import { DataSource } from 'typeorm';
+
+export const AppDataSource = new DataSource({
+  type: 'postgres',
+  host: 'localhost',
+  port: 5432,
+  username: 'test',
+  password: 'test',
+  database: 'test_db',
+  entities: ['src/**/*.entity.ts'],
+  migrations: ['src/databases/migrations/*.ts'],
+  synchronize: false,
+});
+```
+
+**Bước 3: Thêm script vào `package.json`**
+
+```json
+{
+  "scripts": {
+    "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts",
+    "migration:generate": "npm run typeorm -- migration:generate",
+    "migration:run":      "npm run typeorm -- migration:run",
+    "migration:revert":   "npm run typeorm -- migration:revert",
+    "migration:show":     "npm run typeorm -- migration:show",
+    "migration:create":   "npm run typeorm -- migration:create"
+  }
+}
+```
+
+### 2.3 Workflow tổng quan
+
+Trước khi đi vào chi tiết từng lệnh, đây là luồng làm việc chuẩn:
+
+![Migration Workflow](./img/migration_workflow.png)
+---
+
+### 2.4. Tạo Migration
+
+#### 8.4.1. Tạo migration tự động với `migration:generate` (Khuyến nghị)
+
+TypeORM so sánh entity hiện tại với database thực tế rồi tạo file migration:
+
+```bash
+npm run migration:generate -- src/migrations/CreateUserTable
+```
+
+Kết quả: file `src/migrations/1700000000000-CreateUserTable.ts`
+
+> **Lưu ý:** Bạn phải có kết nối database thật khi chạy `generate`. TypeORM cần đọc schema hiện tại để biết cần thay đổi gì.
+
+### 2.4.2. Tạo file trống thủ công
+
+Dùng khi cần viết logic phức tạp như seed data, migrate dữ liệu, tạo stored procedure:
+
+```bash
+npm run migration:create -- src/migrations/SeedRolesData
+```
+
+### 2.5 Ví dụ code một migration
+
+Ví dụ: Migration tạo bảng `users`
+
+```typescript
+// src/migrations/1700000000000-CreateUserTable.ts
+import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm';
+
+export class CreateUserTable1700000000000 implements MigrationInterface {
+
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.createTable(
+      new Table({
+        name: 'users',
+        columns: [
+          {
+            name: 'id',
+            type: 'uuid',
+            isPrimary: true,
+            generationStrategy: 'uuid',
+            default: 'uuid_generate_v4()',
+          },
+          {
+            name: 'email',
+            type: 'varchar',
+            length: '255',
+            isUnique: true,
+            isNullable: false,
+          },
+          {
+            name: 'username',
+            type: 'varchar',
+            length: '100',
+            isNullable: false,
+          },
+          {
+            name: 'password_hash',
+            type: 'varchar',
+            length: '255',
+            isNullable: false,
+          },
+          {
+            name: 'is_active',
+            type: 'boolean',
+            default: true,
+          },
+          {
+            name: 'created_at',
+            type: 'timestamp',
+            default: 'CURRENT_TIMESTAMP',
+          },
+          {
+            name: 'updated_at',
+            type: 'timestamp',
+            default: 'CURRENT_TIMESTAMP',
+          },
+        ],
+      }),
+      true, // ifNotExists
+    );
+
+    await queryRunner.createIndex(
+      'users',
+      new TableIndex({
+        name: 'IDX_USERS_EMAIL',
+        columnNames: ['email'],
+      }),
+    );
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.dropIndex('users', 'IDX_USERS_EMAIL');
+    await queryRunner.dropTable('users');
+  }
+}
+```
+
+### 2.6. Chạy và Rollback Migration
+
+### 2.6.1. Chạy migration
+
+```bash
+npm run migration:run
+```
+
+TypeORM tự động ghi nhận migration đã chạy vào bảng `migrations` trong database. Chỉ những migration **chưa chạy** mới được thực thi.
+
+
+### 2.6.2. Rollback migration cuối
+
+```bash
+npm run migration:revert
+```
+
+Phương thức `down()` của migration gần nhất sẽ được gọi. Mỗi lần chỉ rollback 1 migration.
+
+### 2.6.3. Kiểm tra trạng thái
+
+```bash
+npm run migration:show
+
+# Output:
+# [X] CreateUserTable1700000000000       ← đã chạy
+# [ ] AddProfileColumns1700000001000     ← chưa chạy
+```
+
+### 2.7. Các Pattern Nâng Cao cho Migration
+
+
+### 2.7.1. Thêm cột NOT NULL vào bảng đã có dữ liệu
+
+Không được thêm trực tiếp — cần 3 bước:
+
+```typescript
+public async up(queryRunner: QueryRunner): Promise<void> {
+  // Bước 1: Thêm cột nullable tạm thời
+  await queryRunner.addColumn('users', new TableColumn({
+    name: 'full_name',
+    type: 'varchar',
+    length: '255',
+    isNullable: true,
+  }));
+
+  // Bước 2: Điền dữ liệu cho các bản ghi hiện có
+  await queryRunner.query(`
+    UPDATE users SET full_name = username WHERE full_name IS NULL
+  `);
+
+  // Bước 3: Đổi thành NOT NULL
+  await queryRunner.changeColumn('users', 'full_name', new TableColumn({
+    name: 'full_name',
+    type: 'varchar',
+    length: '255',
+    isNullable: false,
+  }));
+}
+
+public async down(queryRunner: QueryRunner): Promise<void> {
+  await queryRunner.dropColumn('users', 'full_name');
+}
+```
+
+### 2.7.2. Thêm Foreign Key
+
+```typescript
+import { TableForeignKey, TableColumn } from 'typeorm';
+
+public async up(queryRunner: QueryRunner): Promise<void> {
+  // Thêm cột trước
+  await queryRunner.addColumn('posts', new TableColumn({
+    name: 'user_id',
+    type: 'uuid',
+    isNullable: false,
+  }));
+
+  // Sau đó thêm FK
+  await queryRunner.createForeignKey('posts', new TableForeignKey({
+    columnNames: ['user_id'],
+    referencedTableName: 'users',
+    referencedColumnNames: ['id'],
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  }));
+}
+
+public async down(queryRunner: QueryRunner): Promise<void> {
+  const table = await queryRunner.getTable('posts');
+  const fk = table!.foreignKeys.find(
+    fk => fk.columnNames.includes('user_id'),
+  );
+  if (fk) await queryRunner.dropForeignKey('posts', fk);
+  await queryRunner.dropColumn('posts', 'user_id');
+}
+```
+
+### 2.7.3. Raw SQL cho thao tác phức tạp (PostgreSQL)
+
+```typescript
+public async up(queryRunner: QueryRunner): Promise<void> {
+  // Tạo ENUM type
+  await queryRunner.query(`
+    CREATE TYPE user_role AS ENUM ('admin', 'moderator', 'user')
+  `);
+
+  await queryRunner.query(`
+    ALTER TABLE users ADD COLUMN role user_role NOT NULL DEFAULT 'user'
+  `);
+
+  // Tạo trigger tự update updated_at
+  await queryRunner.query(`
+    CREATE OR REPLACE FUNCTION set_updated_at()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = CURRENT_TIMESTAMP;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql
+  `);
+
+  await queryRunner.query(`
+    CREATE TRIGGER users_set_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at()
+  `);
+}
+
+public async down(queryRunner: QueryRunner): Promise<void> {
+  await queryRunner.query(`DROP TRIGGER IF EXISTS users_set_updated_at ON users`);
+  await queryRunner.query(`DROP FUNCTION IF EXISTS set_updated_at`);
+  await queryRunner.query(`ALTER TABLE users DROP COLUMN role`);
+  await queryRunner.query(`DROP TYPE IF EXISTS user_role`);
+}
+```
+
+
+### 2.8. Best Practices cho Migration
+
+1. **Luôn viết `down()` method:** Đảm bảo có thể rollback khi cần.
+
+2. **Kiểm tra migration trên staging trước production:** Luôn test migration trên môi trường staging để phát hiện lỗi sớm.
+
+3. **Không chỉnh sửa migration đã chạy:** Một khi migration đã chạy trên production, không được chỉnh sửa file đó. Nếu cần thay đổi, hãy tạo migration mới.
+
+4. **Sử dụng descriptive names:** Đặt tên migration rõ ràng để dễ hiểu mục đích.
+
+5. **Version control:** Luôn commit migration files vào version control (Git) để theo dõi lịch sử thay đổi.
+
+
+
+### 2.9. Chạy Migration tự động trong NestJS
+
+Thay vì dùng CLI, bạn có thể trigger migration từ code khi app khởi động:
+
+```typescript
+// src/main.ts
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { AppDataSource } from './data-source';
+
+async function bootstrap() {
+  // Chạy migration trước khi start NestJS
+  await AppDataSource.initialize();
+  await AppDataSource.runMigrations();
+  console.log('✅ Migrations ran successfully');
+
+  const app = await NestFactory.create(AppModule);
+  await app.listen(3000);
+}
+
+bootstrap();
+```
+
+Hoặc dùng config `migrationsRun: true` trong `TypeOrmModule.forRoot()` — TypeORM sẽ tự chạy khi kết nối được thiết lập.
+
+---
+
+### 2.10. Cấu trúc thư mục chuẩn
+
+```
+src/
+├── app.module.ts
+├── data-source.ts          ← Dùng cho TypeORM CLI
+├── main.ts
+├── databases/
+|   └──migrations/
+    │   ├── 1700000000000-CreateUserTable.ts
+    │   ├── 1700000001000-CreatePostTable.ts
+    │   └── 1700000002000-SeedInitialRoles.ts
+    seeds/
+        └── seed-users.ts
+└── modules/
+    └── users/
+        ├── user.entity.ts
+        └── ...
+```
+
+---
+
+### 2.11. Bảng lệnh tham khảo nhanh
+
+| Lệnh | Mô tả |
+|---|---|
+| `migration:generate src/migrations/Name` | Tạo migration từ thay đổi entity |
+| `migration:create src/migrations/Name` | Tạo file migration trống |
+| `migration:run` | Chạy tất cả migration pending |
+| `migration:revert` | Rollback migration cuối cùng |
+| `migration:show` | Xem trạng thái tất cả migration |
+
+---
+
+### 2.12. Checklist trước khi merge
+
+- [ ] `down()` hoàn tác **đúng và đầy đủ** những gì `up()` đã làm
+- [ ] Kiểm tra thứ tự tạo/xóa FK (xóa FK trước, xóa bảng sau)
+- [ ] Test chạy `up()` → `down()` → `up()` không có lỗi
+- [ ] Không hardcode dữ liệu nhạy cảm vào migration
+- [ ] Tên file migration mô tả rõ nội dung thay đổi
+- [ ] `synchronize: false` trong tất cả môi trường production/staging
+
+---
+
+> **Nguyên tắc vàng:** Migration là "lịch sử không thể xóa" của database. Một khi đã merge vào `main` và chạy ở production, **đừng bao giờ chỉnh sửa file migration cũ** — hãy tạo migration mới để sửa lại.
+
+### 2.13. Tại sao cần review migration file trước khi chạy?
+
+
+Vì **`migration:generate` không hoàn hảo** — nó so sánh entity với database và đoán ra SQL cần thiết, nhưng nó không hiểu được *ý định* của bạn, chỉ thấy *sự khác biệt*.
+
+---
+
+#### 8.14.1. Generate có thể tạo ra SQL nguy hiểm
+
+**Ví dụ kinh điển — đổi tên cột:**
+
+Bạn đổi tên cột trong entity:
+```typescript
+// Trước
+@Column()
+name: string;
+
+// Sau — bạn chỉ đổi tên
+@Column()
+fullName: string;
+```
+
+TypeORM **không hiểu** đây là rename. Nó thấy cột `name` biến mất và cột `full_name` xuất hiện, nên generate ra:
+
+```sql
+-- ❌ TypeORM tự generate — MẤT TOÀN BỘ DỮ LIỆU
+ALTER TABLE "users" DROP COLUMN "name";
+ALTER TABLE "users" ADD "full_name" varchar NOT NULL;
+```
+
+Trong khi bạn thực sự muốn:
+
+```sql
+-- ✅ Bạn phải tự sửa lại
+ALTER TABLE "users" RENAME COLUMN "name" TO "full_name";
+```
+
+---
+
+#### 8.14.2. Các trường hợp generate sai thường gặp
+
+| Tình huống | Generate tạo ra | Thực tế cần |
+|---|---|---|
+| Đổi tên cột | DROP + ADD (mất data) | RENAME COLUMN |
+| Đổi tên bảng | DROP + CREATE (mất data) | RENAME TABLE |
+| Đổi kiểu dữ liệu có data | ALTER (có thể lỗi) | Migrate data trước, ALTER sau |
+| Thêm cột NOT NULL | ADD NOT NULL (lỗi nếu bảng có data) | ADD nullable → UPDATE → SET NOT NULL |
+| Thêm unique constraint | Có thể thất bại nếu data duplicate | Kiểm tra/clean data trước |
+
+---
+
+#### 8.14.3. Generate không biết về data đang có
+
+```typescript
+// Bạn thêm cột mới với NOT NULL
+@Column()
+status: string; // TypeORM mặc định NOT NULL
+```
+
+Generate tạo ra:
+```sql
+-- ❌ Sẽ lỗi ngay nếu bảng đang có 10,000 rows
+ALTER TABLE "posts" ADD "status" varchar NOT NULL;
+-- ERROR: column "status" contains null values
+```
+
+Phải sửa lại thành 3 bước như đã đề cập trong tutorial.
+
+---
+
+#### 8.14.4. Default value có thể không đúng context
+
+```typescript
+@Column({ default: () => 'CURRENT_TIMESTAMP' })
+createdAt: Date;
+```
+
+Generate có thể tạo ra default value dạng string literal thay vì function call, dẫn đến mọi row đều có cùng một timestamp cố định thay vì thời điểm thực tế khi insert.
+
+---
+
+#### 8.14.5. Thứ tự thao tác có thể sai
+
+Khi bạn thay đổi nhiều thứ cùng lúc, generate đôi khi tạo ra thứ tự không hợp lệ — ví dụ tạo foreign key trước khi tạo bảng được tham chiếu, hoặc xóa bảng trước khi xóa FK phụ thuộc vào nó.
+
+---
+
+**Quy trình review đúng**
+
+```bash
+# 1. Generate ra file
+npm run migration:generate -- src/migrations/SomeChange
+
+# 2. Mở file, đọc kỹ từng dòng SQL trong up() và down()
+# 3. Tự hỏi:
+#    - SQL này có làm mất data không?
+#    - Bảng đang có data không?
+#    - down() có hoàn tác đúng không?
+#    - Thứ tự các lệnh có hợp lý không?
+
+# 4. Chạy thử trên database dev/staging TRƯỚC
+npm run migration:run
+
+# 5. Kiểm tra data vẫn còn nguyên
+# 6. Mới merge vào main
+```
+
+---
+
+Tóm lại: `migration:generate` là công cụ hỗ trợ, không phải công cụ tự động hoàn toàn. Nó giỏi tạo boilerplate, nhưng **bạn** mới là người hiểu data đang có và ý định thực sự của thay đổi. Review là bước bảo vệ production khỏi những lỗi không thể undo.
+
+
+---
+
+## 3. Seeding Database với TypeORM
+
+### 3.1. Seeding là gì?
+
+**Seeding** là việc nạp sẵn một tập dữ liệu mẫu vào database — ví dụ các role mặc định (`admin`, `user`), danh mục sản phẩm, hoặc tài khoản admin đầu tiên — để ứng dụng có dữ liệu chạy được ngay sau khi cài đặt, mà không cần thao tác tay qua giao diện quản trị.
+
+Khác với **Migration** (thay đổi *cấu trúc* bảng: thêm cột, tạo bảng...), **Seeding** chỉ thao tác trên *dữ liệu* bên trong các bảng đã tồn tại. Hai khái niệm hay bị nhầm lẫn:
+
+| | Migration | Seeding |
+|---|---|---|
+| Thay đổi gì | Cấu trúc bảng (schema) | Dữ liệu bên trong bảng |
+| Chạy khi nào | Mỗi khi schema thay đổi | Sau khi migration đã tạo xong bảng |
+| Có cần chạy lại nhiều lần? | Không (mỗi migration chạy 1 lần) | Có thể chạy lại (nếu seeder được viết idempotent — xem mục 3.3) |
+
+### 3.2. Tạo và chạy Seeder với TypeORM
+
+TypeORM không có CLI riêng cho seeding (khác Migration), nên seeder thường được viết như một **script Node.js độc lập**, tự kết nối `DataSource` rồi thao tác qua Repository như code bình thường.
+
+```typescript
+// src/database/seeds/role.seeder.ts
+import { DataSource } from 'typeorm';
+import { Role } from '../../roles/entities/role.entity';
+
+export async function seedRoles(dataSource: DataSource): Promise<void> {
+  const roleRepository = dataSource.getRepository(Role);
+
+  const defaultRoles = [
+    { name: 'admin', description: 'Quản trị viên hệ thống' },
+    { name: 'moderator', description: 'Kiểm duyệt viên nội dung' },
+    { name: 'user', description: 'Người dùng thông thường' },
+  ];
+
+  for (const roleData of defaultRoles) {
+    const existing = await roleRepository.findOneBy({ name: roleData.name });
+    if (!existing) {
+      await roleRepository.save(roleRepository.create(roleData));
+    }
+  }
+}
+```
+
+```typescript
+// src/database/seeds/run-seed.ts — điểm chạy chính, gọi bằng CLI
+import { AppDataSource } from '../data-source';
+import { seedRoles } from './role.seeder';
+
+async function runSeeds() {
+  await AppDataSource.initialize();
+  await seedRoles(AppDataSource);
+  console.log('Seed hoàn tất');
+  await AppDataSource.destroy();
+}
+
+runSeeds().catch((error) => {
+  console.error('Seed thất bại:', error);
+  process.exit(1);
+});
+```
+
+```json
+// package.json
+{
+  "scripts": {
+    "seed": "ts-node src/database/seeds/run-seed.ts"
+  }
+}
+```
+
+```bash
+npm run seed
+```
+
+### 3.3. Seeder cần "idempotent"
+
+Một seeder tốt phải chạy được **nhiều lần mà không tạo dữ liệu trùng lặp** — gọi là tính chất **idempotent**. Ở ví dụ trên, câu lệnh `findOneBy` kiểm tra role đã tồn tại chưa trước khi `save()` chính là để đảm bảo điều này: chạy `npm run seed` 5 lần vẫn chỉ có đúng 3 role, không bị nhân bản.
+
+> **Lưu ý**: Đôi khi bạn sẽ thấy cách chèn dữ liệu mẫu ngay trong một file Migration (dùng `queryRunner.query(INSERT ...)`). Cách này **chỉ phù hợp với dữ liệu gắn chặt với một thay đổi schema cụ thể** (ví dụ vừa thêm cột `status`, migration đó tiện thể cập nhật giá trị mặc định cho các dòng cũ) — không nên dùng để thay thế hoàn toàn cho một seeder script độc lập như trên, vì migration chỉ chạy đúng 1 lần và không phù hợp để quản lý dữ liệu mẫu cần cập nhật/chạy lại linh hoạt.
+
+## 4. Truy vấn nâng cao
+
+### 4.1. FindOptions và Where Operators
 
 #### **Basic FindOptions**
 
@@ -908,7 +1494,7 @@ const users = await this.userRepository.find({
 
 ---
 
-### 2.2. Relations (Eager/Lazy, Select fields)
+### 4.2. Relations (Eager/Lazy, Select fields)
 
 #### **Load Relations**
 
@@ -971,7 +1557,7 @@ TypeOrmModule.forRoot({
 
 ---
 
-### 2.3. Pagination
+### 4.3. Pagination
 
 TypeORM hỗ trợ phân trang qua `skip` và `take` trong FindOptions. Dưới đây là hai cách phổ biến: Offset-based và Cursor-based pagination.
 
@@ -1052,7 +1638,7 @@ async getCursorPaginatedUsers(
 
 ---
 
-### 2.4. Filtering & Search
+### 4.4. Filtering & Search
 
 Dưới đây là ví dụ về cách implement filtering và search nâng cao với TypeORM.
 
@@ -1114,7 +1700,7 @@ async fullTextSearch(query: string) {
 
 ---
 
-### 2.5. Sorting
+### 4.5. Sorting
 
 ```typescript
 // Simple sort
@@ -1149,7 +1735,7 @@ async getUsers(sortBy: string = 'createdAt', order: 'ASC' | 'DESC' = 'DESC') {
 
 ---
 
-### 2.6. Aggregation
+### 4.6. Aggregation
 
 ```typescript
 // Count
@@ -1183,7 +1769,7 @@ console.log(stats);
 
 ---
 
-### 2.7. GROUP BY và HAVING
+### 4.7. GROUP BY và HAVING
 
 ```typescript
 // Group by với count
@@ -1223,7 +1809,7 @@ async getMonthlyRevenue(year: number) {
 
 ---
 
-### 2.8. Subqueries
+### 4.8. Subqueries
 
 ```typescript
 // Subquery trong WHERE
@@ -1270,9 +1856,9 @@ async getUsersWithPostCount2() {
 
 ---
 
-## 3. Query Builder
+## 5. Query Builder
 
-### 3.1. Query Builder là gì?
+### 5.1. Query Builder là gì?
 
 **Khái niệm:** Query Builder là một API của TypeORM cho phép xây dựng SQL queries bằng JavaScript/TypeScript thay vì viết SQL thuần.
 
@@ -1290,7 +1876,7 @@ async getUsersWithPostCount2() {
 
 ---
 
-### 3.2. Khi nào dùng Query Builder
+### 5.2. Khi nào dùng Query Builder
 
 **Nên dùng Query Builder khi:**
 - Cần dynamic queries (conditions thay đổi)
@@ -1310,7 +1896,7 @@ async getUsersWithPostCount2() {
 
 ---
 
-### 3.3. CRUD với Query Builder
+### 5.3. CRUD với Query Builder
 
 #### **Select**
 
@@ -1447,7 +2033,7 @@ await this.userRepository
 
 ---
 
-### 3.4. JOIN Operations
+### 5.4. JOIN Operations
 
 ```typescript
 // INNER JOIN
@@ -1493,7 +2079,7 @@ const posts = await this.postRepository
 
 ---
 
-### 3.5. Subqueries
+### 5.5. Subqueries
 
 ```typescript
 // Subquery trong WHERE
@@ -1544,7 +2130,7 @@ const result = await this.dataSource
 
 ---
 
-### 3.6. Parameters Binding
+### 5.6. Parameters Binding
 
 **Khái niệm:** Bind parameters để tránh SQL injection và tái sử dụng queries.
 
@@ -1593,7 +2179,7 @@ const users = await this.userRepository
 
 ---
 
-### 3.7. Conditional Queries
+### 5.7. Conditional Queries
 
 ```typescript
 async searchUsers(filters: {
@@ -1643,7 +2229,7 @@ async getUsers(sortBy?: string, order: 'ASC' | 'DESC' = 'DESC') {
 
 ---
 
-### 3.8. Query Caching
+### 5.8. Query Caching
 
 **Khái niệm:** Cache kết quả queries để tăng performance.
 
@@ -1693,9 +2279,9 @@ TypeOrmModule.forRoot({
 
 ---
 
-## 4. Transactions
+## 6. Transactions
 
-### 4.1. Transaction là gì? ACID
+### 6.1. Transaction là gì? ACID
 
 **Khái niệm:** Transaction là một nhóm operations được thực thi như một đơn vị. Tất cả thành công hoặc tất cả thất bại (rollback).
 
@@ -1718,7 +2304,7 @@ Nếu bước 1 thành công nhưng bước 2 fail → rollback, không mất ti
 
 ---
 
-### 4.2. QueryRunner Approach
+### 6.2. QueryRunner Approach
 
 **Cách sử dụng linh hoạt nhất:**
 
@@ -1803,7 +2389,7 @@ export class UserService {
 
 ---
 
-### 4.3. Transaction Decorator
+### 6.3. Transaction Decorator
 
 **Cách đơn giản hơn với @Transaction decorator:**
 
@@ -1867,7 +2453,7 @@ export class OrderService {
 
 ---
 
-### 4.4. Isolation Levels
+### 6.4. Isolation Levels
 
 **Khái niệm:** Định nghĩa mức độ cô lập giữa các transactions đồng thời.
 
@@ -1905,7 +2491,7 @@ const newPrice = await manager.findOne(Product, { where: { id: 1 } });
 
 ---
 
-### 4.5. Error Handling
+### 6.5. Error Handling
 
 ```typescript
 async processOrder(orderData: any) {
@@ -1945,7 +2531,7 @@ async processOrder(orderData: any) {
 
 ---
 
-### 4.6. Best Practices
+### 6.6. Best Practices
 
 1. **Keep transactions short:** Transactions càng ngắn càng tốt, giảm lock contention.
 
@@ -1987,9 +2573,9 @@ try {
 
 ---
 
-## 5. Raw Query
+## 7. Raw Query
 
-### 5.1. Khi nào cần Raw Query
+### 7.1. Khi nào cần Raw Query
 
 **Nên dùng Raw Query khi:**
 - Database-specific features (window functions, CTEs, JSON operators)
@@ -2005,7 +2591,7 @@ try {
 
 ---
 
-### 5.2. Cách sử dụng an toàn
+### 7.2. Cách sử dụng an toàn
 
 ```typescript
 // Basic raw query
@@ -2037,7 +2623,7 @@ const result = await this.dataSource.query(`
 
 ---
 
-### 5.3. Parameter Binding
+### 7.3. Parameter Binding
 
 **Postgres style ($1, $2):**
 
@@ -2069,7 +2655,7 @@ await this.dataSource.query(
 
 ---
 
-### 5.4. Security Concerns
+### 7.4. Security Concerns
 
 **SQL Injection - NGUY HIỂM:**
 
@@ -2117,9 +2703,9 @@ async searchUsers(email: string) {
 
 ---
 
-## 6. Soft Delete & Auditing
+## 8. Soft Delete & Auditing
 
-### 6.1. Soft Delete Implementation
+### 8.1. Soft Delete Implementation
 
 **Khái niệm:** Không xóa thật dữ liệu khỏi database, mà chỉ đánh dấu là đã xóa.
 
@@ -2177,7 +2763,7 @@ const deletedUsers = await this.userRepository
 
 ---
 
-### 6.2. Restore Records
+### 8.2. Restore Records
 
 ```typescript
 // Restore soft deleted record
@@ -2196,7 +2782,7 @@ await this.userRepository.restore({ role: 'admin' });
 
 ---
 
-### 6.3. Auditing Columns
+### 8.3. Auditing Columns
 
 **Khái niệm:** Tự động theo dõi ai và khi nào tạo/cập nhật records.
 
@@ -2299,7 +2885,7 @@ export class PostService {
 
 ---
 
-### 6.4. Version Control (Optimistic Locking)
+### 8.4. Version Control (Optimistic Locking)
 
 **Khái niệm:** Ngăn chặn concurrent updates bằng cách track version.
 
@@ -2370,9 +2956,9 @@ await repo.update(
 
 ---
 
-## 7. Indexes & Performance
+## 9. Indexes & Performance
 
-### 7.1. Types of Indexes
+### 9.1. Types of Indexes
 
 **1. Single Column Index:**
 
@@ -2434,7 +3020,7 @@ export class Location {
 
 ---
 
-### 7.2. Tạo Indexes
+### 9.2. Tạo Indexes
 
 **Declarative (trong Entity):**
 
@@ -2498,7 +3084,7 @@ export class CreateProductIndexes1234567890 implements MigrationInterface {
 
 ---
 
-### 7.3. EXPLAIN Queries
+### 9.3. EXPLAIN Queries
 
 **Khái niệm:** Phân tích query execution plan để tối ưu performance.
 
@@ -2549,7 +3135,7 @@ EXPLAIN SELECT * FROM posts WHERE status = 'published';
 
 ---
 
-### 7.4. N+1 Problem
+### 9.4. N+1 Problem
 
 **Khái niệm:** Query 1 lần để lấy parents, rồi query N lần để lấy children → Rất chậm.
 
@@ -2614,7 +3200,7 @@ for (const user of users) {
 
 ---
 
-### 7.5. Query Optimization
+### 9.5. Query Optimization
 
 **1. Select only needed columns:**
 
@@ -2690,7 +3276,7 @@ const posts = await this.postRepository
 
 ---
 
-### 7.6. Performance Monitoring
+### 9.6. Performance Monitoring
 
 **1. Enable query logging:**
 
@@ -2755,540 +3341,7 @@ async findUsers() {
 
 ---
 
-## 8. Migration with TypeORM
-
-### 8.1. Migration là gì? Tại sao cần?
-
-**Khái niệm:** Migration là một cách để quản lý và version hóa schema database. Nó cho phép bạn tạo, cập nhật, hoặc xóa bảng, cột, indexes,... một cách có kiểm soát.  Thay vì để TypeORM tự `synchronize`, bạn viết từng bước thay đổi rõ ràng, có thể rollback, và có thể tái tạo ở bất kỳ môi trường nào.
-
-**Tại sao cần Migration:**
-
-- Quản lý schema changes theo version
-- Dễ dàng deploy schema changes lên production
-- Rollback khi có lỗi
-- Đồng bộ schema giữa các môi trường (dev, staging, prod)
-- Tích hợp với CI/CD pipelines
-
-### 8.2. Cấu hình sử dụng Migration
-
-**Bước 1: Cấu hình AppModule**
-
-```typescript
-TypeOrmModule.forRoot({
-  // ...
-  synchronize: false, // KHÔNG BAO GIỜ dùng synchronize: true ở production
-  migrations: [__dirname + '/migrations/*.ts'], // Đường dẫn đến migration files
-  migrationsRun: false, // Tự động chạy migration khi app start (optional)
-});
-```
-
-**Bước 2: Tạo `dataSource.ts` bắt buộc để chạy CLI**
-
-TypeORM CLI cần một file DataSource riêng, không phụ thuộc vào NestJS container
-
-```typescript
-import { DataSource } from 'typeorm';
-
-export const AppDataSource = new DataSource({
-  type: 'postgres',
-  host: 'localhost',
-  port: 5432,
-  username: 'test',
-  password: 'test',
-  database: 'test_db',
-  entities: ['src/**/*.entity.ts'],
-  migrations: ['src/databases/migrations/*.ts'],
-  synchronize: false,
-});
-```
-
-**Bước 3: Thêm script vào `package.json`**
-
-```json
-{
-  "scripts": {
-    "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts",
-    "migration:generate": "npm run typeorm -- migration:generate",
-    "migration:run":      "npm run typeorm -- migration:run",
-    "migration:revert":   "npm run typeorm -- migration:revert",
-    "migration:show":     "npm run typeorm -- migration:show",
-    "migration:create":   "npm run typeorm -- migration:create"
-  }
-}
-```
-
-### 8.3 Workflow tổng quan
-
-Trước khi đi vào chi tiết từng lệnh, đây là luồng làm việc chuẩn:
-
-![Migration Workflow](./img/migration_workflow.png)
----
-
-### 8.4. Tạo Migration
-
-#### 8.4.1. Tạo migration tự động với `migration:generate` (Khuyến nghị)
-
-TypeORM so sánh entity hiện tại với database thực tế rồi tạo file migration:
-
-```bash
-npm run migration:generate -- src/migrations/CreateUserTable
-```
-
-Kết quả: file `src/migrations/1700000000000-CreateUserTable.ts`
-
-> **Lưu ý:** Bạn phải có kết nối database thật khi chạy `generate`. TypeORM cần đọc schema hiện tại để biết cần thay đổi gì.
-
-### 8.4.2. Tạo file trống thủ công
-
-Dùng khi cần viết logic phức tạp như seed data, migrate dữ liệu, tạo stored procedure:
-
-```bash
-npm run migration:create -- src/migrations/SeedRolesData
-```
-
-### 8.5 Ví dụ code một migration
-
-Ví dụ: Migration tạo bảng `users`
-
-```typescript
-// src/migrations/1700000000000-CreateUserTable.ts
-import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm';
-
-export class CreateUserTable1700000000000 implements MigrationInterface {
-
-  public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.createTable(
-      new Table({
-        name: 'users',
-        columns: [
-          {
-            name: 'id',
-            type: 'uuid',
-            isPrimary: true,
-            generationStrategy: 'uuid',
-            default: 'uuid_generate_v4()',
-          },
-          {
-            name: 'email',
-            type: 'varchar',
-            length: '255',
-            isUnique: true,
-            isNullable: false,
-          },
-          {
-            name: 'username',
-            type: 'varchar',
-            length: '100',
-            isNullable: false,
-          },
-          {
-            name: 'password_hash',
-            type: 'varchar',
-            length: '255',
-            isNullable: false,
-          },
-          {
-            name: 'is_active',
-            type: 'boolean',
-            default: true,
-          },
-          {
-            name: 'created_at',
-            type: 'timestamp',
-            default: 'CURRENT_TIMESTAMP',
-          },
-          {
-            name: 'updated_at',
-            type: 'timestamp',
-            default: 'CURRENT_TIMESTAMP',
-          },
-        ],
-      }),
-      true, // ifNotExists
-    );
-
-    await queryRunner.createIndex(
-      'users',
-      new TableIndex({
-        name: 'IDX_USERS_EMAIL',
-        columnNames: ['email'],
-      }),
-    );
-  }
-
-  public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropIndex('users', 'IDX_USERS_EMAIL');
-    await queryRunner.dropTable('users');
-  }
-}
-```
-
-## 8.6. Chạy và Rollback Migration
-
-## 8.6.1. Chạy migration
-
-```bash
-npm run migration:run
-```
-
-TypeORM tự động ghi nhận migration đã chạy vào bảng `migrations` trong database. Chỉ những migration **chưa chạy** mới được thực thi.
-
-
-### 8.6.2. Rollback migration cuối
-
-```bash
-npm run migration:revert
-```
-
-Phương thức `down()` của migration gần nhất sẽ được gọi. Mỗi lần chỉ rollback 1 migration.
-
-### 8.6.3. Kiểm tra trạng thái
-
-```bash
-npm run migration:show
-
-# Output:
-# [X] CreateUserTable1700000000000       ← đã chạy
-# [ ] AddProfileColumns1700000001000     ← chưa chạy
-```
-
-### 8.7. Các Pattern Nâng Cao cho Migration
-
-
-### 8.7.1. Thêm cột NOT NULL vào bảng đã có dữ liệu
-
-Không được thêm trực tiếp — cần 3 bước:
-
-```typescript
-public async up(queryRunner: QueryRunner): Promise<void> {
-  // Bước 1: Thêm cột nullable tạm thời
-  await queryRunner.addColumn('users', new TableColumn({
-    name: 'full_name',
-    type: 'varchar',
-    length: '255',
-    isNullable: true,
-  }));
-
-  // Bước 2: Điền dữ liệu cho các bản ghi hiện có
-  await queryRunner.query(`
-    UPDATE users SET full_name = username WHERE full_name IS NULL
-  `);
-
-  // Bước 3: Đổi thành NOT NULL
-  await queryRunner.changeColumn('users', 'full_name', new TableColumn({
-    name: 'full_name',
-    type: 'varchar',
-    length: '255',
-    isNullable: false,
-  }));
-}
-
-public async down(queryRunner: QueryRunner): Promise<void> {
-  await queryRunner.dropColumn('users', 'full_name');
-}
-```
-
-### 8.7.2. Thêm Foreign Key
-
-```typescript
-import { TableForeignKey, TableColumn } from 'typeorm';
-
-public async up(queryRunner: QueryRunner): Promise<void> {
-  // Thêm cột trước
-  await queryRunner.addColumn('posts', new TableColumn({
-    name: 'user_id',
-    type: 'uuid',
-    isNullable: false,
-  }));
-
-  // Sau đó thêm FK
-  await queryRunner.createForeignKey('posts', new TableForeignKey({
-    columnNames: ['user_id'],
-    referencedTableName: 'users',
-    referencedColumnNames: ['id'],
-    onDelete: 'CASCADE',
-    onUpdate: 'CASCADE',
-  }));
-}
-
-public async down(queryRunner: QueryRunner): Promise<void> {
-  const table = await queryRunner.getTable('posts');
-  const fk = table!.foreignKeys.find(
-    fk => fk.columnNames.includes('user_id'),
-  );
-  if (fk) await queryRunner.dropForeignKey('posts', fk);
-  await queryRunner.dropColumn('posts', 'user_id');
-}
-```
-
-### 8.7.3. Raw SQL cho thao tác phức tạp (PostgreSQL)
-
-```typescript
-public async up(queryRunner: QueryRunner): Promise<void> {
-  // Tạo ENUM type
-  await queryRunner.query(`
-    CREATE TYPE user_role AS ENUM ('admin', 'moderator', 'user')
-  `);
-
-  await queryRunner.query(`
-    ALTER TABLE users ADD COLUMN role user_role NOT NULL DEFAULT 'user'
-  `);
-
-  // Tạo trigger tự update updated_at
-  await queryRunner.query(`
-    CREATE OR REPLACE FUNCTION set_updated_at()
-    RETURNS TRIGGER AS $$
-    BEGIN
-      NEW.updated_at = CURRENT_TIMESTAMP;
-      RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql
-  `);
-
-  await queryRunner.query(`
-    CREATE TRIGGER users_set_updated_at
-    BEFORE UPDATE ON users
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at()
-  `);
-}
-
-public async down(queryRunner: QueryRunner): Promise<void> {
-  await queryRunner.query(`DROP TRIGGER IF EXISTS users_set_updated_at ON users`);
-  await queryRunner.query(`DROP FUNCTION IF EXISTS set_updated_at`);
-  await queryRunner.query(`ALTER TABLE users DROP COLUMN role`);
-  await queryRunner.query(`DROP TYPE IF EXISTS user_role`);
-}
-```
-
-
-### 8.8. Seed Data trong Migration
-
-```typescript
-// src/migrations/1700000002000-SeedInitialRoles.ts
-import { MigrationInterface, QueryRunner } from 'typeorm';
-
-export class SeedInitialRoles1700000002000 implements MigrationInterface {
-  public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-      INSERT INTO roles (name, description, created_at) VALUES
-        ('admin',     'Quản trị viên hệ thống',    NOW()),
-        ('moderator', 'Kiểm duyệt viên nội dung',  NOW()),
-        ('user',      'Người dùng thông thường',    NOW())
-      ON CONFLICT (name) DO NOTHING
-    `);
-  }
-
-  public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-      DELETE FROM roles WHERE name IN ('admin', 'moderator', 'user')
-    `);
-  }
-}
-```
-
-### 8.9. Best Practices cho Migration
-
-1. **Luôn viết `down()` method:** Đảm bảo có thể rollback khi cần.
-
-2. **Kiểm tra migration trên staging trước production:** Luôn test migration trên môi trường staging để phát hiện lỗi sớm.
-
-3. **Không chỉnh sửa migration đã chạy:** Một khi migration đã chạy trên production, không được chỉnh sửa file đó. Nếu cần thay đổi, hãy tạo migration mới.
-
-4. **Sử dụng descriptive names:** Đặt tên migration rõ ràng để dễ hiểu mục đích.
-
-5. **Version control:** Luôn commit migration files vào version control (Git) để theo dõi lịch sử thay đổi.
-
-
-
-### 8.10. Chạy Migration tự động trong NestJS
-
-Thay vì dùng CLI, bạn có thể trigger migration từ code khi app khởi động:
-
-```typescript
-// src/main.ts
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { AppDataSource } from './data-source';
-
-async function bootstrap() {
-  // Chạy migration trước khi start NestJS
-  await AppDataSource.initialize();
-  await AppDataSource.runMigrations();
-  console.log('✅ Migrations ran successfully');
-
-  const app = await NestFactory.create(AppModule);
-  await app.listen(3000);
-}
-
-bootstrap();
-```
-
-Hoặc dùng config `migrationsRun: true` trong `TypeOrmModule.forRoot()` — TypeORM sẽ tự chạy khi kết nối được thiết lập.
-
----
-
-### 8.11. Cấu trúc thư mục chuẩn
-
-```
-src/
-├── app.module.ts
-├── data-source.ts          ← Dùng cho TypeORM CLI
-├── main.ts
-├── databases/
-|   └──migrations/
-    │   ├── 1700000000000-CreateUserTable.ts
-    │   ├── 1700000001000-CreatePostTable.ts
-    │   └── 1700000002000-SeedInitialRoles.ts
-    seeds/
-        └── seed-users.ts
-└── modules/
-    └── users/
-        ├── user.entity.ts
-        └── ...
-```
-
----
-
-### 8.12. Bảng lệnh tham khảo nhanh
-
-| Lệnh | Mô tả |
-|---|---|
-| `migration:generate src/migrations/Name` | Tạo migration từ thay đổi entity |
-| `migration:create src/migrations/Name` | Tạo file migration trống |
-| `migration:run` | Chạy tất cả migration pending |
-| `migration:revert` | Rollback migration cuối cùng |
-| `migration:show` | Xem trạng thái tất cả migration |
-
----
-
-### 8.13. Checklist trước khi merge
-
-- [ ] `down()` hoàn tác **đúng và đầy đủ** những gì `up()` đã làm
-- [ ] Kiểm tra thứ tự tạo/xóa FK (xóa FK trước, xóa bảng sau)
-- [ ] Test chạy `up()` → `down()` → `up()` không có lỗi
-- [ ] Không hardcode dữ liệu nhạy cảm vào migration
-- [ ] Tên file migration mô tả rõ nội dung thay đổi
-- [ ] `synchronize: false` trong tất cả môi trường production/staging
-
----
-
-> **Nguyên tắc vàng:** Migration là "lịch sử không thể xóa" của database. Một khi đã merge vào `main` và chạy ở production, **đừng bao giờ chỉnh sửa file migration cũ** — hãy tạo migration mới để sửa lại.
-
-### 8.14. Tại sao cần review migration file trước khi chạy?
-
-
-Vì **`migration:generate` không hoàn hảo** — nó so sánh entity với database và đoán ra SQL cần thiết, nhưng nó không hiểu được *ý định* của bạn, chỉ thấy *sự khác biệt*.
-
----
-
-#### 8.14.1. Generate có thể tạo ra SQL nguy hiểm
-
-**Ví dụ kinh điển — đổi tên cột:**
-
-Bạn đổi tên cột trong entity:
-```typescript
-// Trước
-@Column()
-name: string;
-
-// Sau — bạn chỉ đổi tên
-@Column()
-fullName: string;
-```
-
-TypeORM **không hiểu** đây là rename. Nó thấy cột `name` biến mất và cột `full_name` xuất hiện, nên generate ra:
-
-```sql
--- ❌ TypeORM tự generate — MẤT TOÀN BỘ DỮ LIỆU
-ALTER TABLE "users" DROP COLUMN "name";
-ALTER TABLE "users" ADD "full_name" varchar NOT NULL;
-```
-
-Trong khi bạn thực sự muốn:
-
-```sql
--- ✅ Bạn phải tự sửa lại
-ALTER TABLE "users" RENAME COLUMN "name" TO "full_name";
-```
-
----
-
-#### 8.14.2. Các trường hợp generate sai thường gặp
-
-| Tình huống | Generate tạo ra | Thực tế cần |
-|---|---|---|
-| Đổi tên cột | DROP + ADD (mất data) | RENAME COLUMN |
-| Đổi tên bảng | DROP + CREATE (mất data) | RENAME TABLE |
-| Đổi kiểu dữ liệu có data | ALTER (có thể lỗi) | Migrate data trước, ALTER sau |
-| Thêm cột NOT NULL | ADD NOT NULL (lỗi nếu bảng có data) | ADD nullable → UPDATE → SET NOT NULL |
-| Thêm unique constraint | Có thể thất bại nếu data duplicate | Kiểm tra/clean data trước |
-
----
-
-#### 8.14.3. Generate không biết về data đang có
-
-```typescript
-// Bạn thêm cột mới với NOT NULL
-@Column()
-status: string; // TypeORM mặc định NOT NULL
-```
-
-Generate tạo ra:
-```sql
--- ❌ Sẽ lỗi ngay nếu bảng đang có 10,000 rows
-ALTER TABLE "posts" ADD "status" varchar NOT NULL;
--- ERROR: column "status" contains null values
-```
-
-Phải sửa lại thành 3 bước như đã đề cập trong tutorial.
-
----
-
-#### 8.14.4. Default value có thể không đúng context
-
-```typescript
-@Column({ default: () => 'CURRENT_TIMESTAMP' })
-createdAt: Date;
-```
-
-Generate có thể tạo ra default value dạng string literal thay vì function call, dẫn đến mọi row đều có cùng một timestamp cố định thay vì thời điểm thực tế khi insert.
-
----
-
-#### 8.14.5. Thứ tự thao tác có thể sai
-
-Khi bạn thay đổi nhiều thứ cùng lúc, generate đôi khi tạo ra thứ tự không hợp lệ — ví dụ tạo foreign key trước khi tạo bảng được tham chiếu, hoặc xóa bảng trước khi xóa FK phụ thuộc vào nó.
-
----
-
-**Quy trình review đúng**
-
-```bash
-# 1. Generate ra file
-npm run migration:generate -- src/migrations/SomeChange
-
-# 2. Mở file, đọc kỹ từng dòng SQL trong up() và down()
-# 3. Tự hỏi:
-#    - SQL này có làm mất data không?
-#    - Bảng đang có data không?
-#    - down() có hoàn tác đúng không?
-#    - Thứ tự các lệnh có hợp lý không?
-
-# 4. Chạy thử trên database dev/staging TRƯỚC
-npm run migration:run
-
-# 5. Kiểm tra data vẫn còn nguyên
-# 6. Mới merge vào main
-```
-
----
-
-Tóm lại: `migration:generate` là công cụ hỗ trợ, không phải công cụ tự động hoàn toàn. Nó giỏi tạo boilerplate, nhưng **bạn** mới là người hiểu data đang có và ý định thực sự của thay đổi. Review là bước bảo vệ production khỏi những lỗi không thể undo.
-
-
----
-
 ## Bonus: Advanced SQL Features
 
-- [ SQL Stored Procedures](./typeorm-stored-procedures.md)
-- [Advanced Patterns & Best Practices](./advanced-patterns-best-practices.md)
+- [SQL Stored Procedures](./typeorm-stored-procedures.md)
+- [Advanced Patterns & Best Practices](./addvanced-pattern-best-practice.md)

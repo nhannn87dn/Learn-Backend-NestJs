@@ -451,3 +451,89 @@ nest generate module modules/books
 
 hoặc tự tạo thủ công theo cấu trúc đề xuất ở trên.
 
+---
+
+## 7. Xử lý lỗi với Built-in HTTP Exceptions
+
+### 7.1 Vì sao không nên tự trả lỗi bằng tay?
+
+Ở mục 5, `BooksService` đã dùng `throw new NotFoundException(...)` khi không tìm thấy sách — nhưng chưa giải thích rõ đây là gì. Nếu không dùng cơ chế này, bạn sẽ phải tự set status code và trả response lỗi thủ công trong từng handler:
+
+```typescript
+// ❌ Cách làm thủ công — dễ quên, dễ sai, mỗi người viết một kiểu
+@Get(':id')
+findOne(@Param('id') id: string, @Res() res: Response) {
+  const book = this.booksService.findOne(+id);
+  if (!book) {
+    return res.status(404).json({ statusCode: 404, message: 'Book not found' });
+  }
+  return res.json(book);
+}
+```
+
+NestJS cung cấp sẵn một tập class lỗi kế thừa từ `HttpException`, chỉ cần `throw` là NestJS **tự động** chuyển thành đúng response HTTP tương ứng — không cần tự set status code hay tự gọi `res.json()`.
+
+### 7.2 Các Built-in HTTP Exceptions thường dùng
+
+```typescript
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
+```
+
+| Exception | HTTP Status | Dùng khi nào |
+|---|---|---|
+| `NotFoundException` | 404 | Không tìm thấy resource (ví dụ `findOne(id)` không có kết quả) |
+| `BadRequestException` | 400 | Dữ liệu client gửi lên sai định dạng/không hợp lệ (ngoài phạm vi validation tự động của DTO) |
+| `ConflictException` | 409 | Dữ liệu bị xung đột — ví dụ tạo user với email đã tồn tại |
+| `UnauthorizedException` | 401 | Chưa xác thực (sẽ dùng nhiều ở Lesson 09) |
+| `ForbiddenException` | 403 | Đã xác thực nhưng không đủ quyền (sẽ dùng nhiều ở Lesson 10) |
+
+### 7.3 Throw exception từ Service
+
+Exception nên được `throw` ngay trong **Service** (nơi biết dữ liệu có hợp lệ hay không), không phải trong Controller — giữ đúng nguyên tắc "Controller lo HTTP, Service lo business logic" đã học ở mục 5.
+
+```typescript
+// src/books/books.service.ts
+findOne(id: number): Book {
+  const book = this.books.find((b) => b.id === id);
+  if (!book) {
+    throw new NotFoundException(`Book with ID ${id} not found`); // NestJS tự trả về 404
+  }
+  return book;
+}
+
+create(createBookDto: CreateBookDto): Book {
+  const existed = this.books.find((b) => b.title === createBookDto.title);
+  if (existed) {
+    throw new ConflictException(`Book "${createBookDto.title}" already exists`); // 409
+  }
+  // ...
+}
+```
+
+Controller không cần bất kỳ code xử lý lỗi nào — chỉ cần gọi Service bình thường:
+
+```typescript
+@Get(':id')
+findOne(@Param('id') id: string) {
+  return this.booksService.findOne(+id); // nếu Service throw, NestJS tự trả response lỗi đúng chuẩn
+}
+```
+
+Response mà client nhận được khi `throw new NotFoundException('Book with ID 99 not found')`:
+
+```json
+{
+  "statusCode": 404,
+  "message": "Book with ID 99 not found",
+  "error": "Not Found"
+}
+```
+
+> **Vì sao quan trọng?** Đây chính là nền tảng để Lesson 08 xây dựng Exception Filter tùy chỉnh — Exception Filter sẽ **bắt lại** các exception này (và cả lỗi không lường trước) để format response theo đúng cấu trúc chuẩn hóa chung của toàn bộ API.
+

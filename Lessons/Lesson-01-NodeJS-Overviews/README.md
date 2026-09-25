@@ -5,8 +5,9 @@
 > * Hiểu **Backend là gì** và vai trò của Backend Developer
 > * Hiểu **Node.js** hoạt động như thế nào (Event Loop, Non-blocking I/O)
 > * Nắm vững **JavaScript ES6+** cần thiết cho NestJS
-> * Nắm vững **TypeScript cơ bản** – ngôn ngữ chính của NestJS
 > * Phân biệt **NPM, Yarn, PNPM** và biết cách dùng Package.json
+>
+> (TypeScript — ngôn ngữ chính của NestJS — được học riêng ở Lesson 02)
 
 ---
 

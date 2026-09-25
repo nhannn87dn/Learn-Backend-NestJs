@@ -1,4 +1,19 @@
-# Lesson 02: TypeScript và Lập trình OOP
+# Lesson 02: TypeScript cho NestJS
+
+## Mục tiêu bài học
+
+Sau bài học này, học viên có thể:
+- Cài đặt và cấu hình một dự án TypeScript với `tsconfig.json` ở chế độ `strict`
+- Khai báo đúng kiểu dữ liệu cơ bản, union/literal type, và thu hẹp kiểu (narrowing)
+- Viết được function có kiểu tham số/giá trị trả về, kể cả hàm `async`
+- Dùng được Generics và Utility Types (`Partial`, `Pick`, `Omit`...) để tái sử dụng kiểu dữ liệu
+- Viết class với constructor, access modifier, `implements`, `extends` — đúng mức cần thiết để đọc hiểu code NestJS
+- Giải thích được vì sao NestJS bắt buộc dùng `class` thay vì `interface` để làm Dependency Injection
+- Tự viết được một decorator đơn giản, và giải thích cơ chế `reflect-metadata` đứng sau nó
+
+## Ôn tập nhanh buổi trước
+
+Buổi 1 (Lesson 01) đã giới thiệu Node.js, Event Loop, và cách quản lý package bằng npm/pnpm. TypeScript hôm nay chạy trên nền Node.js đó — mọi khái niệm về module, `package.json`, `node_modules` ở buổi 1 vẫn áp dụng nguyên vẹn, chỉ khác là code được viết bằng cú pháp có kiểu (typed) rồi biên dịch (compile) ra JavaScript trước khi Node.js chạy.
 
 ## Phần 1. TypeScript cơ bản
 
@@ -256,6 +271,32 @@ ketHop("Xin", 10);      // Lỗi! không có overload nào khớp
 
 > **Vì sao học phần này?** Trong NestJS, nhiều class (ví dụ các thư viện ORM, HTTP client) định nghĩa nhiều overload cho cùng một method để hỗ trợ nhiều cách gọi khác nhau. Hiểu overload giúp bạn đọc hiểu type hint mà IDE gợi ý.
 
+#### Async Function & `Promise<T>`
+
+Một hàm `async` luôn trả về một **Promise** — một "lời hứa" sẽ có giá trị trong tương lai (ví dụ sau khi gọi xong database, gọi xong API). `Promise<T>` là kiểu generic (sẽ học kỹ ở Phần 3): `T` chính là kiểu dữ liệu bên trong Promise đó khi nó hoàn thành.
+
+```typescript
+function layNguoiDungCu(id: number): Promise<string> {
+  // giả lập gọi bất đồng bộ (ví dụ query database) mất 1 giây
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(`Người dùng #${id}`), 1000);
+  });
+}
+
+async function layNguoiDungMoi(id: number): Promise<string> {
+  // "await" chờ Promise hoàn thành rồi mới lấy giá trị bên trong
+  const ten = await layNguoiDungCu(id);
+  return ten;
+}
+
+async function main() {
+  const ten = await layNguoiDungMoi(1);
+  console.log(ten); // "Người dùng #1" (in ra sau 1 giây)
+}
+```
+
+> **Vì sao quan trọng?** Trong NestJS, gần như mọi method của Service (query database, gọi API bên ngoài, đọc file...) đều là `async` và trả về `Promise<T>` — ví dụ `findOne(id: number): Promise<User>`. NestJS tự động `await` các Promise này ở tầng Controller, bạn chỉ cần khai báo đúng kiểu trả về.
+
 ---
 
 ### 1.4. Union, Intersection & Literal Types
@@ -404,9 +445,55 @@ let m = Mau.Do; // Sau khi biên dịch, dòng này trở thành: let m = 0;
 
 ---
 
-## Phần 2. Phần 2: OOP trong TypeScript
+### 1.6. Utility Types
 
-> Đây là phần **quan trọng nhất** trong toàn bộ lộ trình, vì NestJS được xây dựng hoàn toàn trên tư duy hướng đối tượng (OOP) kết hợp Dependency Injection. Nếu học viên chưa vững OOP trong TS, học NestJS sẽ chỉ là "copy code mẫu" mà không hiểu bản chất.
+TypeScript có sẵn một số kiểu tiện ích (utility types) giúp **biến đổi một interface/type có sẵn thành kiểu mới**, mà không cần viết lại từ đầu.
+
+```typescript
+interface SanPham {
+  id: number;
+  ten: string;
+  gia: number;
+  moTa: string;
+}
+```
+
+**`Partial<T>`** — biến tất cả property thành optional (dùng khi update, chỉ truyền những field muốn sửa):
+
+```typescript
+function capNhatSanPham(id: number, thayDoi: Partial<SanPham>): void {
+  // thayDoi có thể chỉ chứa { gia: 300000 }, không bắt buộc đủ 4 field
+}
+```
+
+**`Required<T>`** — ngược lại với `Partial`, biến tất cả property thành bắt buộc.
+
+**`Pick<T, Keys>`** — chỉ lấy ra một số property nhất định:
+
+```typescript
+type SanPhamTomTat = Pick<SanPham, "id" | "ten">; // chỉ còn { id: number; ten: string }
+```
+
+**`Omit<T, Keys>`** — ngược lại với `Pick`, loại bỏ một số property:
+
+```typescript
+type SanPhamKhongCoGia = Omit<SanPham, "gia">; // còn lại { id; ten; moTa }
+```
+
+**`Record<Keys, ValueType>`** — tạo nhanh một object type mà mọi key đều cùng kiểu giá trị:
+
+```typescript
+type SoLuongTonKho = Record<string, number>;
+const tonKho: SoLuongTonKho = { "sp-001": 10, "sp-002": 25 };
+```
+
+> **Ứng dụng trực tiếp**: NestJS dùng chính các utility type này (thông qua gói `@nestjs/mapped-types`) để tạo DTO update từ DTO create, ví dụ `class UpdateProductDto extends PartialType(CreateProductDto) {}` — về bản chất `PartialType` chỉ là áp dụng `Partial<T>` lên một class.
+
+---
+
+## Phần 2. Class trong TypeScript (đủ dùng cho NestJS)
+
+> NestJS viết code hoàn toàn bằng `class` (Controller, Service, Module, DTO, Guard...). Phần này **không đi sâu vào lý thuyết OOP** (kế thừa nhiều tầng, đa hình, trừu tượng hóa...) mà chỉ tập trung vào đúng lượng cú pháp class cần biết để đọc hiểu và viết được code NestJS.
 
 ### 2.1 Class cở bản
 
@@ -682,12 +769,19 @@ const user = User.fromPlainObject({ id: 1, name: 'Tomy' });
 
 Trong NestJS, không nên lạm dụng `static` cho business logic cần dependency injection. Service bình thường vẫn nên được inject qua constructor.
 
+> `readonly` với dấu `!` (definite assignment): khi bật `strict` (cụ thể là `strictPropertyInitialization`), TS bắt buộc mọi property phải được gán giá trị trong constructor hoặc lúc khai báo. Với entity TypeORM, giá trị `id`, `createdAt`... thực ra do TypeORM gán sau khi query database, không phải trong constructor bạn tự viết — TS không biết điều đó nên sẽ báo lỗi "Property has no initializer". Thêm dấu `!` ngay sau tên property để nói với TS: "tôi biết, giá trị này chắc chắn sẽ có, đừng bắt tôi khởi tạo nó ở constructor".
+>
+> ```typescript
+> class UserEntity {
+>   id!: number;        // dấu ! = "tôi cam kết giá trị này sẽ được gán từ bên ngoài"
+>   email!: string;
+>   createdAt!: Date;
+> }
+> ```
 
 ---
 
-### 2.2. Kế thừa & Đa hình (Inheritance & Polymorphism)
-
-#### `extends` và `super()`
+### 2.2. `extends` và `super()` (kế thừa cơ bản)
 
 Kế thừa cho phép một class **dùng lại** property và method của class khác (class cha), đồng thời có thể thêm/thay đổi hành vi riêng.
 
@@ -718,43 +812,15 @@ console.log(cho.ten);      // "Lu" — kế thừa từ DongVat
 console.log(cho.keu());    // dùng method kế thừa từ DongVat
 ```
 
-`super(ten)` gọi đến constructor của class cha (`DongVat`) để khởi tạo phần dữ liệu chung, trước khi class con tiếp tục khởi tạo phần riêng của mình.
+`super(ten)` gọi đến constructor của class cha (`DongVat`) để khởi tạo phần dữ liệu chung, trước khi class con tiếp tục khởi tạo phần riêng của mình. Class con cũng có thể định nghĩa lại (override) một method đã có ở class cha nếu muốn thay đổi hành vi, chỉ cần khai báo lại method cùng tên.
 
-#### Method Overriding (ghi đè phương thức)
+#### `abstract` (giới thiệu)
 
-Class con có thể **định nghĩa lại** một method đã có ở class cha để thay đổi hành vi:
-
-```typescript
-class Meo extends DongVat {
-  keu(): string {
-    // Ghi đè lại method keu() của DongVat
-    return `${this.ten} kêu: Meo meo!`;
-  }
-}
-
-const meo = new Meo("Mun");
-console.log(meo.keu()); // "Mun kêu: Meo meo!" — dùng bản ghi đè, không dùng bản gốc
-```
-
-Đây chính là **tính đa hình (polymorphism)**: cùng một method `keu()`, nhưng mỗi class con có thể có hành vi khác nhau.
-
-```typescript
-const danhSachDongVat: DongVat[] = [new Cho("Lu", "Golden"), new Meo("Mun")];
-
-danhSachDongVat.forEach((dv) => {
-  console.log(dv.keu()); // mỗi phần tử tự "biết" cách kêu của riêng mình
-});
-```
-
-#### Abstract Class & Abstract Method
-
-Trừu tượng hóa là định nghĩa phần "cần làm gì", còn chi tiết "làm như thế nào" để class cụ thể xử lý.
-
-`abstract class` là một class **không thể khởi tạo trực tiếp** (`new AbstractClass()` sẽ báo lỗi) — nó chỉ tồn tại để làm "khuôn mẫu" cho các class con kế thừa. `abstract method` là method **chỉ khai báo chữ ký, bắt buộc class con phải tự triển khai**.
+`abstract class` là một class **không thể khởi tạo trực tiếp** (`new AbstractClass()` sẽ báo lỗi) — nó chỉ tồn tại để làm "khuôn mẫu" cho các class con kế thừa, tương tự `interface` nhưng có thể chứa sẵn cả code dùng chung.
 
 ```typescript
 abstract class HinhHoc {
-  abstract tinhDienTich(): number; // không có phần thân, chỉ khai báo
+  abstract tinhDienTich(): number; // không có phần thân, bắt buộc class con tự viết
 
   moTa(): string {
     return `Diện tích: ${this.tinhDienTich()}`;
@@ -770,13 +836,9 @@ class HinhTron extends HinhHoc {
     return Math.PI * this.banKinh ** 2;
   }
 }
-
-const hinh = new HinhHoc(); // Lỗi! không thể khởi tạo abstract class trực tiếp
-const tron = new HinhTron(5);
-console.log(tron.moTa()); // "Diện tích: 78.53..."
 ```
 
-> **Ứng dụng thực tế**: Trong các dự án NestJS lớn, `abstract class` thường được dùng để định nghĩa **base Repository** hoặc **base Service** — ví dụ một `BaseRepository` khai báo sẵn các method chung (`findById`, `save`...) nhưng để phần triển khai chi tiết (kết nối database cụ thể) cho từng class con tự hiện thực.
+> **Ứng dụng thực tế**: Trong các dự án NestJS lớn, `abstract class` thường được dùng để định nghĩa **base Repository** hoặc **base Service** — khai báo sẵn các method chung (`findById`, `save`...) nhưng để phần triển khai chi tiết cho từng class con tự hiện thực.
 
 ---
 
@@ -832,33 +894,23 @@ class Vit implements CoTheBay, CoTheBoi {
 }
 ```
 
-#### Tư duy "thiết kế contract trước khi code"
+#### Vì sao NestJS dùng `class` chứ không dùng `interface`?
 
-Một thói quen tốt là **viết interface trước**, mô tả rõ "class này cần làm được gì", rồi mới viết class triển khai. Cách làm này giúp:
-- Nhiều người có thể làm việc song song (một người định nghĩa interface, người khác triển khai)
-- Dễ dàng thay thế một triển khai bằng triển khai khác miễn là tuân theo cùng interface
+Đây là điểm rất hay bị bỏ qua nhưng lại là chìa khóa để hiểu NestJS: **`interface` chỉ tồn tại lúc biên dịch (compile-time)** — sau khi TS biên dịch xong, toàn bộ khai báo `interface` **bị xóa hoàn toàn** khỏi file JS, không để lại dấu vết gì lúc chạy (runtime). Ngược lại, **`class` vẫn tồn tại lúc runtime** — nó thực sự trở thành một hàm/constructor trong JS.
 
 ```typescript
 interface KhoLuuTru {
   luu(key: string, value: string): void;
-  doc(key: string): string | null;
 }
-
-// Triển khai 1: lưu trong bộ nhớ
 class BoNhoTam implements KhoLuuTru {
-  private data: Record<string, string> = {};
-  luu(key: string, value: string): void { this.data[key] = value; }
-  doc(key: string): string | null { return this.data[key] ?? null; }
+  luu(key: string, value: string): void {}
 }
 
-// Triển khai 2: giả lập lưu file (thực tế sẽ đọc/ghi file thật)
-class LuuFile implements KhoLuuTru {
-  luu(key: string, value: string): void { console.log(`Ghi "${value}" vào file ${key}`); }
-  doc(key: string): string | null { console.log(`Đọc file ${key}`); return null; }
-}
+console.log(typeof KhoLuuTru); // Lỗi! KhoLuuTru không tồn tại lúc runtime, đã bị xóa khi biên dịch
+console.log(typeof BoNhoTam);  // "function" — class vẫn tồn tại thật sự
 ```
 
-> **Vì sao quan trọng?** Đây chính xác là tư duy đứng sau **Dependency Injection** trong NestJS: một service chỉ cần biết "tôi cần một thứ tuân theo interface `KhoLuuTru`", còn việc nó thực sự là `BoNhoTam` hay `LuuFile` sẽ được "tiêm vào" (inject) từ bên ngoài, giúp code dễ test và dễ thay đổi triển khai mà không sửa logic chính.
+NestJS cần **đọc được thông tin kiểu dữ liệu lúc chạy chương trình** để biết constructor của một class đang cần "tiêm" (inject) vào những gì (sẽ thấy rõ ở Phần 4 — Reflect Metadata). Vì `interface` biến mất lúc runtime nên NestJS **không thể** dùng interface để khai báo dependency cần inject — bắt buộc phải dùng `class` (DTO, Service...) thì cơ chế Dependency Injection mới hoạt động được.
 
 ---
 
@@ -915,47 +967,6 @@ class DichVuThongBao {
 > }
 > ```
 > Khi mới học NestJS, rất nhiều học viên tưởng rằng dòng `private readonly userService: UserService` trong constructor là "phép màu" của framework. **Sự thật là nó chỉ đơn thuần là cú pháp Parameter Properties của TypeScript thuần** — NestJS chỉ tận dụng cú pháp này kết hợp với decorator (học ở Phần 4) để biết cần "tiêm" cái gì vào đâu. Hiểu rõ điều này giúp bạn không còn thấy NestJS "khó hiểu" nữa.
-
----
-
-### 2.5. Static Members
-
-Static property/method thuộc về **chính class**, không thuộc về từng instance (object) được tạo ra từ class đó. Gọi trực tiếp qua tên class, không cần `new`.
-
-```typescript
-class BoDemNguoiDung {
-  static soLuong: number = 0;
-
-  constructor(public ten: string) {
-    BoDemNguoiDung.soLuong++; // mỗi lần tạo mới, tăng biến static dùng chung
-  }
-
-  static thongKe(): string {
-    return `Đã có ${BoDemNguoiDung.soLuong} người dùng được tạo`;
-  }
-}
-
-new BoDemNguoiDung("An");
-new BoDemNguoiDung("Bình");
-console.log(BoDemNguoiDung.thongKe()); // "Đã có 2 người dùng được tạo"
-```
-
-Static thường dùng cho:
-- Biến đếm / trạng thái dùng chung cho toàn bộ class
-- Hàm tiện ích (utility) không phụ thuộc vào dữ liệu riêng của từng object
-
-```typescript
-class ToanHoc {
-  static PI: number = 3.14159;
-
-  static tinhChuVi(banKinh: number): number {
-    return 2 * ToanHoc.PI * banKinh;
-  }
-}
-
-console.log(ToanHoc.tinhChuVi(5)); // dùng trực tiếp qua tên class, không cần new
-```
-
 
 ---
 
@@ -1148,7 +1159,7 @@ sanPhamRepo.save({ id: 1, ten: "Bàn phím" });
 console.log(sanPhamRepo.findById(1)); // { id: 1, ten: "Bàn phím" }
 ```
 
-> **Ứng dụng trực tiếp**: Trong NestJS (đặc biệt khi dùng TypeORM/Prisma), bạn sẽ thấy các kiểu như `Repository<User>`, `Promise<User[]>`, `Model<Product>` xuất hiện khắp nơi. Đây chính xác là tư duy `RepositoryDonGian<T>` ở trên — một class Repository **dùng chung logic** (save, find, delete...) nhưng áp dụng được cho **bất kỳ entity nào** (`User`, `Product`, `Order`...) nhờ Generics. Việc tự tay viết một `RepositoryDonGian<T>` như trên trước khi học NestJS sẽ giúp bạn không còn thấy `Repository<User>` là điều gì đó xa lạ.
+> **Ứng dụng trực tiếp**: Trong NestJS (khi dùng TypeORM), bạn sẽ thấy các kiểu như `Repository<User>`, `Promise<User[]>` xuất hiện khắp nơi. Đây chính xác là tư duy `RepositoryDonGian<T>` ở trên — một class Repository **dùng chung logic** (save, find, delete...) nhưng áp dụng được cho **bất kỳ entity nào** (`User`, `Product`, `Order`...) nhờ Generics. Việc tự tay viết một `RepositoryDonGian<T>` như trên trước khi học NestJS sẽ giúp bạn không còn thấy `Repository<User>` là điều gì đó xa lạ.
 
 
 ---
@@ -1502,480 +1513,37 @@ import { DichVuNguoiDung, DichVuSanPham, DichVuDonHang } from "./services";
 
 ---
 
-### 5.2. Namespace vs Module
+## Common mistakes — lỗi người mới hay gặp
 
-`namespace` là cách **cũ** để tổ chức code TypeScript trước khi ES Module trở thành chuẩn phổ biến — dùng để nhóm code lại dưới một tên chung, tránh xung đột tên biến toàn cục.
+1. **Dùng `any` để "cho qua" lỗi type**: gặp lỗi TS báo đỏ, thay vì đọc hiểu và sửa đúng kiểu, học viên mới thường gõ đại `: any` để tắt lỗi. Hậu quả: mất hết lợi ích của TypeScript, lỗi sẽ nổ ra lúc chạy chương trình thay vì lúc code.
+2. **Quên `private readonly` trong constructor rồi thắc mắc sao NestJS "không tự inject được"**: parameter properties (mục 2.4) là cú pháp bắt buộc phải có access modifier (`private`, `public`...) đứng trước tham số thì TS mới tự tạo property — quên modifier thì tham số đó chỉ là biến cục bộ bình thường, không inject được gì cả.
+3. **Nhầm lẫn `interface` và `type` rồi không biết khi nào dùng cái nào**: quy tắc đơn giản — dùng `interface` để mô tả hình dạng object/class (DTO, entity), dùng `type` khi cần union/intersection.
+4. **Quên bật `strict` trong `tsconfig.json`**: khi thiếu `strict: true`, rất nhiều lỗi tiềm ẩn (property chưa khởi tạo, tham số có thể `null`...) sẽ không được TS cảnh báo, tạo cảm giác "code chạy được" nhưng thực ra tiềm ẩn lỗi runtime.
+5. **Viết decorator nhưng quên bật `experimentalDecorators`/`emitDecoratorMetadata`**: code biên dịch lỗi hoặc decorator chạy nhưng không đọc được kiểu tham số — nguyên nhân gần như luôn là thiếu 2 flag này trong `tsconfig.json`.
 
-```typescript
-namespace ValidationUtils {
-  export function laSoDuong(n: number): boolean {
-    return n > 0;
-  }
-}
+## Bài tập thực hành trên lớp
 
-console.log(ValidationUtils.laSoDuong(5)); // true
-```
+**Đề bài**: Viết một chương trình TypeScript quản lý danh sách sản phẩm, gồm:
+1. Một `interface Product` mô tả sản phẩm (`id`, `ten`, `gia`, `soLuongTon`).
+2. Một `class ProductRepository` dùng Generics (`class ProductRepository<T extends { id: number }>`) với các method `save`, `findById`, `findAll` (tương tự ví dụ `RepositoryDonGian<T>` ở Phần 3.4).
+3. Dùng Utility Types tạo ra `CreateProductDto` (`Omit<Product, "id">`) và `UpdateProductDto` (`Partial<CreateProductDto>`).
+4. Viết một decorator method đơn giản `@GhiLog()` gắn vào method `save` để in ra console mỗi khi có sản phẩm mới được lưu.
 
-**So sánh nhanh**:
+**Gợi ý hướng giải**: bắt đầu từ ví dụ `RepositoryDonGian<T>` đã có sẵn trong bài, thêm ràng buộc generic `extends { id: number }`, rồi áp Utility Types lên `interface Product` đã định nghĩa. Với decorator, tái sử dụng cấu trúc `GhiLogThoiGian` ở mục 4.2.
 
-| | Namespace | Module (import/export) |
-|---|---|---|
-| Cách chia file | Không bắt buộc, có thể gộp nhiều namespace trong 1 file | Mỗi file là 1 module riêng biệt |
-| Mức độ phổ biến hiện nay | Rất hiếm dùng | Chuẩn phổ biến, được toàn bộ hệ sinh thái JS/TS hiện đại dùng |
-| Công cụ bundler hỗ trợ | Hạn chế | Hỗ trợ đầy đủ (Webpack, Vite, esbuild...) |
+## Homework
 
-> **Lưu ý cho học viên**: NestJS (và hầu như toàn bộ dự án Node.js hiện đại) **không dùng `namespace`**. Phần này chỉ cần biết để không bỡ ngỡ nếu gặp trong code cũ hoặc một số thư viện định nghĩa kiểu (`.d.ts`) lâu đời — không cần luyện tập viết `namespace` trong thực hành.
+- [ ] Cấu hình một project TypeScript mới từ đầu (`npm init`, cài `typescript`, tạo `tsconfig.json` với `strict: true`).
+- [ ] Viết lại bài tập trên lớp, nhưng đổi entity từ `Product` sang `Order` (đơn hàng) có ít nhất 5 field, trong đó có 1 field kiểu union literal (ví dụ trạng thái đơn hàng).
+- [ ] Viết thêm một Generic Interface `ApiResponse<T>` (giống mục 3.4) và áp dụng nó để bọc kết quả trả về của `findAll()`.
+- [ ] (Nâng cao) Tự viết một decorator factory nhận tham số, ví dụ `@ValidateNotEmpty("ten")`, ném lỗi nếu property được chỉ định rỗng.
 
----
+## Câu hỏi ôn tập
 
-## Phần 6: Advanced Types
-
-> Phần này tập trung vào các kiểu dữ liệu nâng cao giúp bạn *tái sử dụng và biến đổi type* thay vì viết lại từ đầu — đây chính là nền tảng để hiểu cách NestJS xử lý DTO (Data Transfer Object) sau này.
-
-
-
-### 6.1. Utility Types
-
-Utility Type là các "type có sẵn" trong TypeScript, dùng để **biến đổi một type đã có thành một type mới** mà không cần viết lại toàn bộ.
-
-Giả sử ta có interface gốc sau, dùng xuyên suốt các ví dụ bên dưới:
-
-```typescript
-interface NguoiDung {
-  id: number;
-  ten: string;
-  email: string;
-  tuoi: number;
-}
-```
-
-#### `Partial<T>` — biến tất cả property thành optional
-
-```typescript
-type CapNhatNguoiDung = Partial<NguoiDung>;
-// Tương đương:
-// { id?: number; ten?: string; email?: string; tuoi?: number }
-
-function capNhat(id: number, duLieu: CapNhatNguoiDung) {
-  // cho phép chỉ truyền một vài field muốn cập nhật
-}
-
-capNhat(1, { ten: "Tên mới" }); // OK, không cần truyền đủ cả 4 field
-```
-
-**Tình huống thực tế**: khi viết API cập nhật (update), người dùng thường chỉ muốn sửa 1-2 trường thay vì gửi lại toàn bộ object. `Partial<T>` giải quyết đúng bài toán này.
-
-#### `Required<T>` — ngược lại với Partial, bắt buộc tất cả property
-
-```typescript
-interface TuyChon {
-  mau?: string;
-  kichThuoc?: string;
-}
-
-type TuyChonBatBuoc = Required<TuyChon>;
-// { mau: string; kichThuoc: string } — không còn dấu ? nữa
-```
-
-#### `Readonly<T>` — biến tất cả property thành chỉ đọc
-
-```typescript
-type NguoiDungChiDoc = Readonly<NguoiDung>;
-
-const u: NguoiDungChiDoc = { id: 1, ten: "An", email: "a@gmail.com", tuoi: 25 };
-u.ten = "Bình"; // Lỗi! không được sửa vì đã readonly
-```
-
-#### `Pick<T, Keys>` — chọn ra một vài property
-
-```typescript
-type ThongTinCongKhai = Pick<NguoiDung, "ten" | "email">;
-// { ten: string; email: string } — chỉ giữ lại 2 field được chọn
-
-const thongTin: ThongTinCongKhai = { ten: "An", email: "a@gmail.com" };
-```
-
-**Tình huống thực tế**: khi trả dữ liệu người dùng ra ngoài API, ta thường không muốn lộ hết mọi field (ví dụ mật khẩu). `Pick` giúp định nghĩa nhanh kiểu dữ liệu "public" từ kiểu dữ liệu gốc đầy đủ.
-
-#### `Omit<T, Keys>` — loại bỏ một vài property (ngược lại với Pick)
-
-```typescript
-type NguoiDungKhongCoId = Omit<NguoiDung, "id">;
-// { ten: string; email: string; tuoi: number }
-
-function taoMoi(duLieu: NguoiDungKhongCoId) {
-  // id sẽ do hệ thống tự sinh, không cần client truyền lên
-}
-```
-
-**So sánh nhanh Pick vs Omit**:
-
-| | Cách hoạt động | Ví dụ |
-|---|---|---|
-| `Pick<T, K>` | Giữ lại các key trong `K` | `Pick<NguoiDung, "ten">` → chỉ có `ten` |
-| `Omit<T, K>` | Loại bỏ các key trong `K`, giữ phần còn lại | `Omit<NguoiDung, "id">` → có tất cả trừ `id` |
-
-#### `Record<Keys, Type>` — tạo object type với key và value có kiểu xác định
-
-```typescript
-type BangGia = Record<string, number>;
-
-const gia: BangGia = {
-  banPhim: 500000,
-  chuot: 200000,
-};
-
-// Kết hợp với literal type để giới hạn cả tên key:
-type MauSac = "do" | "xanh" | "vang";
-type MaHex = Record<MauSac, string>;
-
-const bangMau: MaHex = {
-  do: "#FF0000",
-  xanh: "#0000FF",
-  vang: "#FFFF00",
-  // thieu bat ky mau nao cung se bao loi, vi Record bat buoc du key
-};
-```
-
-#### Ví dụ tổng hợp: kết hợp nhiều Utility Type
-
-```typescript
-interface SanPham {
-  id: number;
-  ten: string;
-  gia: number;
-  moTa: string;
-  tonKho: number;
-}
-
-// DTO tạo mới: không cần id (server tự sinh)
-type TaoSanPhamDto = Omit<SanPham, "id">;
-
-// DTO cập nhật: dựa trên DTO tạo mới, nhưng mọi field đều optional
-type CapNhatSanPhamDto = Partial<TaoSanPhamDto>;
-
-// DTO hiển thị danh sách rút gọn: chỉ cần vài field
-type SanPhamRutGon = Pick<SanPham, "id" | "ten" | "gia">;
-```
-
-> **Ứng dụng trực tiếp trong NestJS**: gói `@nestjs/mapped-types` cung cấp các hàm `PartialType()`, `PickType()`, `OmitType()`, `IntersectionType()` — về bản chất chính là áp dụng các Utility Type ở trên (`Partial`, `Pick`, `Omit`...) nhưng có tích hợp thêm validation decorator. Ví dụ điển hình: `UpdateUserDto` thường được viết bằng cách kế thừa `CreateUserDto` và bọc trong `PartialType()` — chính là tư duy `Partial<TaoSanPhamDto>` ở trên, chỉ khác là NestJS "wrap" nó lại thành một class thực thụ thay vì chỉ là type.
+1. Sự khác nhau giữa `any` và `unknown` là gì? Vì sao nên hạn chế dùng `any`?
+2. Viết cú pháp parameter properties tương đương với việc khai báo property + gán trong constructor bằng tay.
+3. Vì sao NestJS phải dùng `class` (không dùng `interface`) để khai báo dependency cần inject?
+4. `Partial<T>` và `Required<T>` khác nhau như thế nào? Cho một tình huống thực tế nên dùng `Partial<T>`.
+5. Hai flag `experimentalDecorators` và `emitDecoratorMetadata` trong `tsconfig.json` dùng để làm gì?
 
 ---
-
-### 6.2. Mapped Types & Conditional Types
-
-#### Mapped Types — tự viết Utility Type của riêng bạn
-
-Thực chất `Partial<T>`, `Readonly<T>`... ở trên **không phải phép màu** — chúng được TypeScript định nghĩa sẵn bằng cú pháp gọi là **Mapped Type**. Ta hoàn toàn có thể tự viết một cái tương tự:
-
-```typescript
-// Đây là cách TypeScript định nghĩa Partial<T> (rút gọn)
-type PartialCuaToi<T> = {
-  [Key in keyof T]?: T[Key];
-};
-
-// keyof T: lấy ra tất cả tên property của T dưới dạng union
-// [Key in ...]: lặp qua từng key đó để tạo property mới
-// ?: thêm dấu optional cho mỗi property
-
-interface SanPham {
-  ten: string;
-  gia: number;
-}
-
-type SanPhamOptional = PartialCuaToi<SanPham>;
-// { ten?: string; gia?: number }
-```
-
-Một ví dụ khác — tự viết `Readonly<T>`:
-
-```typescript
-type ReadonlyCuaToi<T> = {
-  readonly [Key in keyof T]: T[Key];
-};
-```
-
-Hoặc biến tất cả property thành kiểu `string` (dùng để hiển thị dạng form nhập liệu chẳng hạn):
-
-```typescript
-type DangChuoi<T> = {
-  [Key in keyof T]: string;
-};
-
-type SanPhamDangForm = DangChuoi<SanPham>;
-// { ten: string; gia: string } — gia dù gốc là number cũng thành string
-```
-
-#### Conditional Types — "if/else" ở mức kiểu dữ liệu
-
-Conditional Type cho phép định nghĩa một kiểu **phụ thuộc vào điều kiện**, dùng cú pháp giống toán tử ba ngôi:
-
-```
-KieuA extends KieuB ? KetQuaNeuDung : KetQuaNeuSai
-```
-
-```typescript
-type LaChuoi<T> = T extends string ? "co" : "khong";
-
-type A = LaChuoi<string>; // "co"
-type B = LaChuoi<number>; // "khong"
-```
-
-Ví dụ thực tế hơn — tạo type loại bỏ `null`/`undefined`:
-
-```typescript
-type LoaiBoRong<T> = T extends null | undefined ? never : T;
-
-type KetQua = LoaiBoRong<string | null | undefined>;
-// KetQua = string (đã loại bỏ null và undefined)
-```
-
-Kết hợp Mapped Type + Conditional Type — chỉ lấy ra các property có kiểu là `string`:
-
-```typescript
-type ChiLayKieuChuoi<T> = {
-  [K in keyof T as T[K] extends string ? K : never]: T[K];
-};
-
-interface HoSo {
-  ten: string;
-  tuoi: number;
-  email: string;
-}
-
-type ChiCacFieldChuoi = ChiLayKieuChuoi<HoSo>;
-// { ten: string; email: string } — tuoi bị loại vì là number
-```
-
-> **Mức độ cần thiết**: Ở giai đoạn học để dùng NestJS, bạn **không cần tự viết** Mapped Type hay Conditional Type phức tạp. Mục tiêu của phần này là để khi mở file `.d.ts` của một thư viện (ví dụ đọc source code `@nestjs/mapped-types` hoặc các thư viện ORM) và thấy cú pháp `[K in keyof T]` hay `extends ... ? ... : ...`, bạn **không hoảng** — mà hiểu được đây là TS đang "biến đổi type", tương tự cách ta viết logic biến đổi dữ liệu bình thường.
-
----
-
-### 6.3. Type Inference với `infer`
-
-`infer` là từ khóa dùng **bên trong** Conditional Type, cho phép TS **"đoán" và lấy ra** một kiểu con nằm bên trong một kiểu phức tạp hơn.
-
-#### Ví dụ dễ hiểu nhất: lấy kiểu trả về của hàm
-
-TypeScript có sẵn Utility Type tên `ReturnType<T>`, được định nghĩa (rút gọn) như sau:
-
-```typescript
-type ReturnTypeCuaToi<T> = T extends (...args: any[]) => infer R ? R : never;
-
-function laySanPham() {
-  return { ten: "Bàn phím", gia: 500000 };
-}
-
-type KetQuaLaySanPham = ReturnTypeCuaToi<typeof laySanPham>;
-// { ten: string; gia: number }
-```
-
-Giải thích: `infer R` nói với TS rằng "hãy tự suy ra kiểu trả về của hàm này và gán tạm vào biến kiểu tên `R`", sau đó `R` được dùng làm kết quả trả về của cả conditional type.
-
-#### Ví dụ khác: lấy kiểu phần tử bên trong mảng
-
-```typescript
-type PhanTuCuaMang<T> = T extends (infer Item)[] ? Item : never;
-
-type A = PhanTuCuaMang<string[]>; // string
-type B = PhanTuCuaMang<number[]>; // number
-```
-
-#### Ví dụ khác: lấy kiểu dữ liệu "bên trong" một Promise
-
-```typescript
-type LayKieuTrongPromise<T> = T extends Promise<infer U> ? U : T;
-
-async function layDuLieu(): Promise<{ id: number; ten: string }> {
-  return { id: 1, ten: "An" };
-}
-
-type KetQua = LayKieuTrongPromise<ReturnType<typeof layDuLieu>>;
-// { id: number; ten: string } — đã "bóc" ra khỏi Promise<...>
-```
-
-> **Vì sao cần biết `infer` dù chỉ ở mức giới thiệu?** Khi làm việc với các hàm bất đồng bộ (rất phổ biến trong NestJS — service, repository đều trả về `Promise<T>`), đôi khi bạn cần một kiểu mô tả "dữ liệu thật sự bên trong Promise" để dùng ở nơi khác (ví dụ viết một Generic Response wrapper). `infer` chính là công cụ đứng sau các Utility Type như `ReturnType`, `Parameters`, `Awaited` mà bạn sẽ dùng (chứ không cần tự viết) trong quá trình code thực tế.
-
----
-
-
-## Phần 7: Async & Error handling
-
-> Phần này không phải kiến thức "riêng của NestJS", nhưng là nền tảng bắt buộc để hiểu **Exception Filter** — cơ chế xử lý lỗi tập trung của NestJS — cũng như để viết mọi service/controller vốn hầu như luôn là hàm bất đồng bộ (`async`).
-
----
-
-### 7.1. Promise, async/await với kiểu dữ liệu
-
-#### `Promise<T>` là gì?
-
-`Promise` đại diện cho **một giá trị sẽ có trong tương lai** (kết quả của một tác vụ bất đồng bộ như gọi API, đọc file, truy vấn database). Tham số generic `T` mô tả **kiểu dữ liệu sẽ nhận được khi Promise hoàn thành thành công**.
-
-```typescript
-function doiMotGiay(): Promise<string> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve("Đã đợi xong 1 giây");
-    }, 1000);
-  });
-}
-```
-
-`Promise<string>` nghĩa là: "đây là một Promise, và khi nó hoàn thành (resolve), giá trị trả về sẽ có kiểu `string`".
-
-#### `async` / `await`
-
-`async`/`await` là cú pháp giúp viết code bất đồng bộ **trông giống code đồng bộ**, dễ đọc hơn nhiều so với `.then()/.catch()`.
-
-```typescript
-async function layThongBao(): Promise<string> {
-  const ketQua = await doiMotGiay(); // "tạm dừng" tại đây cho tới khi Promise hoàn thành
-  return ketQua.toUpperCase();
-}
-
-layThongBao().then((tb) => console.log(tb)); // "ĐÃ ĐỢI XONG 1 GIÂY"
-```
-
-Quy tắc quan trọng: **một hàm được khai báo `async` luôn trả về `Promise<T>`**, dù bên trong bạn `return` một giá trị "thường" (không phải Promise), TS vẫn tự động bọc nó thành `Promise<T>`.
-
-```typescript
-async function laySo(): Promise<number> {
-  return 42; // TS tự hiểu: hàm này trả về Promise<number>, không phải number
-}
-
-const ketQua = laySo(); // kiểu là Promise<number>, KHÔNG phải number
-ketQua.toFixed(2); // Lỗi! Promise không có method toFixed — phải await trước
-```
-
-#### Kiểu dữ liệu khi làm việc với nhiều Promise
-
-```typescript
-interface SanPham {
-  id: number;
-  ten: string;
-}
-
-async function laySanPham(id: number): Promise<SanPham> {
-  return { id, ten: `Sản phẩm ${id}` };
-}
-
-async function layNhieuSanPham(): Promise<SanPham[]> {
-  // Promise.all chạy song song, kiểu trả về tự động là mảng đúng kiểu
-  const ketQua = await Promise.all([laySanPham(1), laySanPham(2), laySanPham(3)]);
-  return ketQua; // SanPham[]
-}
-```
-
----
-
-### 7.2. Custom Error Class
-
-#### Vì sao không nên chỉ `throw` chuỗi hoặc `Error` chung chung?
-
-```typescript
-// Cách không tốt — mất hết ngữ cảnh về loại lỗi
-throw new Error("Không tìm thấy người dùng");
-```
-
-Khi code lớn dần, bạn cần **phân biệt được loại lỗi** để xử lý khác nhau (ví dụ: lỗi "không tìm thấy" trả về HTTP 404, lỗi "không có quyền" trả về HTTP 403). Giải pháp là **tự định nghĩa class lỗi riêng**, kế thừa từ `Error` gốc.
-
-#### Tự viết Custom Error Class
-
-```typescript
-class KhongTimThayError extends Error {
-  constructor(message: string) {
-    super(message); // gọi constructor của Error gốc để gán message
-    this.name = "KhongTimThayError"; // đặt tên riêng để dễ phân biệt khi log/debug
-    Object.setPrototypeOf(this, KhongTimThayError.prototype); // đảm bảo instanceof hoạt động đúng khi biên dịch xuống ES5
-  }
-}
-
-class KhongCoQuyenError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "KhongCoQuyenError";
-    Object.setPrototypeOf(this, KhongCoQuyenError.prototype);
-  }
-}
-```
-
-#### Sử dụng và bắt lỗi theo từng loại (dùng `instanceof` — đã học ở Phần 1.4)
-
-```typescript
-function timNguoiDung(id: number): { id: number; ten: string } {
-  if (id !== 1) {
-    throw new KhongTimThayError(`Không tìm thấy người dùng với id = ${id}`);
-  }
-  return { id: 1, ten: "An" };
-}
-
-try {
-  timNguoiDung(99);
-} catch (error) {
-  if (error instanceof KhongTimThayError) {
-    console.log(`Lỗi 404: ${error.message}`);
-  } else if (error instanceof KhongCoQuyenError) {
-    console.log(`Lỗi 403: ${error.message}`);
-  } else {
-    console.log("Lỗi không xác định:", error);
-  }
-}
-```
-
-#### Custom Error kèm thêm dữ liệu (property riêng)
-
-Bạn có thể mở rộng Custom Error để mang theo thêm thông tin hữu ích, ví dụ mã lỗi HTTP tương ứng:
-
-```typescript
-class AppError extends Error {
-  constructor(
-    message: string,
-    public readonly maLoiHttp: number, // Parameter Property — đã học ở Phần 2.4
-  ) {
-    super(message);
-    this.name = "AppError";
-    Object.setPrototypeOf(this, AppError.prototype);
-  }
-}
-
-class KhongTimThayError extends AppError {
-  constructor(message: string) {
-    super(message, 404);
-  }
-}
-
-class KhongCoQuyenError extends AppError {
-  constructor(message: string) {
-    super(message, 403);
-  }
-}
-
-function xuLyLoi(error: unknown): void {
-  if (error instanceof AppError) {
-    console.log(`[HTTP ${error.maLoiHttp}] ${error.message}`);
-  } else {
-    console.log("Lỗi hệ thống không xác định");
-  }
-}
-
-xuLyLoi(new KhongTimThayError("Không tìm thấy sản phẩm"));
-// "[HTTP 404] Không tìm thấy sản phẩm"
-```
-
-#### Xử lý lỗi trong hàm `async`
-
-```typescript
-async function layDuLieuAnToan(id: number): Promise<string> {
-  try {
-    const nguoiDung = timNguoiDung(id);
-    return nguoiDung.ten;
-  } catch (error) {
-    if (error instanceof KhongTimThayError) {
-      return "Người dùng ẩn danh"; // xử lý fallback thay vì để crash cả ứng dụng
-    }
-    throw error; // lỗi không lường trước — ném tiếp cho tầng cao hơn xử lý
-  }
-}
-```
-
-> **Ứng dụng trực tiếp trong NestJS**: cơ chế **Exception Filter** của NestJS hoạt động dựa trên đúng tư duy `instanceof` + Custom Error Class ở trên. Các lớp lỗi có sẵn như `NotFoundException`, `ForbiddenException`, `BadRequestException`... về bản chất đều là các Custom Error Class kế thừa từ một lớp lỗi gốc (tương tự `AppError` ở ví dụ trên), mỗi lớp mang theo sẵn mã HTTP tương ứng. Khi bạn `throw new NotFoundException('Không tìm thấy sản phẩm')` trong một service, NestJS ở tầng framework sẽ bắt lỗi đó bằng `instanceof`, đọc mã HTTP đi kèm, và tự động trả về đúng response — hoàn toàn giống cách hàm `xuLyLoi()` ở ví dụ trên phân loại và xử lý lỗi.

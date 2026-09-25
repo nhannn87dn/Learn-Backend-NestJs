@@ -1,4 +1,4 @@
-# Lesson 09: Authorization với NestJS
+# Lesson 10: Authorization với NestJS
 
 ## Authorization là gì?
   * Khái niệm Authorization
@@ -12,8 +12,9 @@
   * Gán Role cho User
   * Gán Permission cho Role
 ## Protecting Routes với Authorization Guards
-  * Tạo AuthGuard
+  * Custom decorator `@Roles()` với `SetMetadata` và `Reflector`
+  * Tạo RolesGuard
   * Sử dụng Guards trong Controllers
-* Advanced Authorization
+## Advanced Authorization
   * Attribute-based access control (ABAC)
   * Policy-based authorization
